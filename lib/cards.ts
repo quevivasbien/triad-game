@@ -14,6 +14,34 @@ function shuffle<T>(array: T[]) {
     }
 }
 
+function isTriad(c1: Card, c2: Card, c3: Card) {
+    if (c1.color !== c2.color) {
+        if (c1.color === c3.color || c2.color === c3.color) {
+            return false;
+        }
+    }
+
+    if (c1.number !== c2.number) {
+        if (c1.number === c3.number || c2.number === c3.number) {
+            return false;
+        }
+    }
+
+    if (c1.shape !== c2.shape) {
+        if (c1.shape === c3.shape || c2.shape === c3.shape) {
+            return false;
+        }
+    }
+
+    if (c1.pattern !== c2.pattern) {
+        if (c1.pattern === c3.pattern || c2.pattern === c3.pattern) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 export class Card {
     constructor(
         public readonly color: Color,
@@ -44,8 +72,31 @@ export class Deck {
 
 export class Table {
     cards: Card[];
+    collected: Card[] = [];
     
-    constructor(private deck: Deck, private nCards: number = 12) {
+    constructor(public deck: Deck, private nCards: number = 12) {
         this.cards = deck.draw(nCards);
+    }
+
+    attemptRemoveTriad(cardIndices: number[]) {
+        if (cardIndices.length !== 3) {
+            return false;
+        }
+        const triad =  isTriad(this.cards[cardIndices[0]], this.cards[cardIndices[1]], this.cards[cardIndices[2]]);
+
+        if (triad) {
+            this.collected = [
+                ...this.collected,
+                this.cards[cardIndices[0]],
+                this.cards[cardIndices[1]],
+                this.cards[cardIndices[2]],
+            ];
+            this.cards = [
+                ...this.cards.filter((card, i) => !cardIndices.includes(i)),
+                ...this.deck.draw(3)
+            ];
+        }
+
+        return triad;
     }
 }
