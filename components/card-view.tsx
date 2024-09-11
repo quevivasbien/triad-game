@@ -1,3 +1,5 @@
+"use client";
+
 import { Card } from "@/lib/cards";
 
 const svgSize = 100;
@@ -11,6 +13,41 @@ const red = `hsl(${hueBase}, ${saturation}%, ${lightness}%)`;
 const green = `hsl(${hueBase + 120}, ${saturation}%, ${lightness}%)`;
 const blue = `hsl(${hueBase + 240}, ${saturation}%, ${lightness}%)`;
 const gray = `hsl(0, 0%, 75%)`;
+
+function Circle({ color, fillColor, size, strokeWidth }: { color: string, fillColor: string, size: number, strokeWidth: number }) {
+    const svgProps = {
+        cx: size / 2,
+        cy: size / 2,
+        r: size / 2 - strokeWidth,
+        fill: fillColor,
+        stroke: color,
+        strokeWidth,
+    };
+    return <circle {...svgProps} />
+}
+
+function Triangle({ color, fillColor, size, strokeWidth }: { color: string, fillColor: string, size: number, strokeWidth: number }) {
+    const svgProps = {
+        points: `${size / 2},${strokeWidth} ${size-strokeWidth},${size-strokeWidth} ${strokeWidth},${size-strokeWidth}`,
+        stroke: color,
+        fill: fillColor,
+        strokeWidth,
+    };
+    return <polygon {...svgProps} />
+}
+
+function Square({ color, fillColor, size, strokeWidth }: { color: string, fillColor: string, size: number, strokeWidth: number }) {
+    const svgProps = {
+        x: strokeWidth,
+        y: strokeWidth,
+        width: size - 2 * strokeWidth,
+        height: size - 2 * strokeWidth,
+        fill: fillColor,
+        stroke: color,
+        strokeWidth,
+    };
+    return <rect {...svgProps} />
+}
 
 export default function CardView({ card, selected }: { card: Card, selected: boolean }) {
     const className = `flex items-center justify-center bg-card border rounded-lg w-40 h-48 p-4 ${selected ? "border-accent shadow-lg shadow-accent/80" : "shadow-md"}`;
@@ -47,21 +84,20 @@ export default function CardView({ card, selected }: { card: Card, selected: boo
     let shape;
     switch (card.shape) {
         case "circle":
-            shape = <circle cx={size / 2} cy={size / 2} r={size / 2 -strokeWidth} stroke={color}
-                strokeWidth={strokeWidth} fill={fillColor} />;
+            shape = <Circle color={color} fillColor={fillColor} size={size} strokeWidth={strokeWidth} />;
             break;
         case "triangle":
-            shape = <polygon points={`${size / 2},${strokeWidth} ${size-strokeWidth},${size-strokeWidth} ${strokeWidth},${size-strokeWidth}`} stroke={color} strokeWidth={strokeWidth} fill={fillColor} />;
+            shape = <Triangle color={color} fillColor={fillColor} size={size} strokeWidth={strokeWidth} />;
             break;
         case "square":
-            shape = <rect x={strokeWidth} y={strokeWidth} width={size-2*strokeWidth} height={size-2*strokeWidth} stroke={color} strokeWidth={strokeWidth} fill={fillColor} />;
+            shape = <Square color={color} fillColor={fillColor} size={size} strokeWidth={strokeWidth} />;
             break;
     }
 
     // One svg for each number
     const svgs = [];
     for (let i = 0; i < card.number; i++) {
-        svgs.push(<svg width={size} height={size}>
+        svgs.push(<svg width={size} height={size} key={i}>
             {shape}
         </svg>);
     }

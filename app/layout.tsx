@@ -1,6 +1,6 @@
+import "./globals.css";
 import { GeistSans } from "geist/font/sans";
 import { ThemeProvider } from "next-themes";
-import "./globals.css";
 import Link from "next/link";
 import TriadLogo from "@/components/triad-logo";
 
@@ -36,6 +36,10 @@ export default function RootLayout({
                     <div className="text-xl">Triad</div>
                     <TriadLogo size={32} color="gray" />
                   </Link>
+                  <div className="flex flex-row gap-8">
+                    <Link href="/learn">Learn</Link>
+                    <Link href="/">Play</Link>
+                  </div>
                 </div>
               </nav>
               <div className="flex flex-col gap-20 max-w-5xl p-5">

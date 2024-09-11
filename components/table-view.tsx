@@ -1,11 +1,18 @@
 "use client";
 
-import { Deck, Table } from "@/lib/cards";
+import { Table } from "@/lib/cards";
 import CardView from "./card-view";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import CardStack from "./card-stack";
 
 export default function TableView({ table }: { table: Table }) {
+    const [isClient, setIsClient] = useState(false);
+ 
+    useEffect(() => {
+        setIsClient(true)
+    }, []);
+
+
     const [selected, setSelected] = useState<number[]>([]);
     const [flash, setFlash] = useState<number[]>([]);
     const [rotations, setRotations] = useState<number[]>(
@@ -54,7 +61,8 @@ export default function TableView({ table }: { table: Table }) {
         );
     });
 
-    return (
+    // Only allow rendering on the client, to avoid issues with failed hydration since cards are dynamic
+    return isClient ? (
         <div className="flex flex-col gap-16">
             <div className="grid grid-cols-3 gap-4">
                 {cards}
@@ -64,5 +72,5 @@ export default function TableView({ table }: { table: Table }) {
                 <CardStack cards={table.collected} faceUp={true} />
             </div>
         </div>
-    );
+    ) : null;
 }
