@@ -53,7 +53,7 @@ export default function TableView({ table }: { table: Table }) {
     });
 
     return (
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-16">
             <div className="grid grid-cols-3 gap-4">
                 {cards}
             </div>

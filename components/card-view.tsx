@@ -5,12 +5,12 @@ const svgStrokeWidth = 10;
 
 const hueBase = 20;
 const saturation = 60;
-const lightness = 30;
+const lightness = 35;
 
 const red = `hsl(${hueBase}, ${saturation}%, ${lightness}%)`;
 const green = `hsl(${hueBase + 120}, ${saturation}%, ${lightness}%)`;
 const blue = `hsl(${hueBase + 240}, ${saturation}%, ${lightness}%)`;
-const gray = `hsl(0, 0%, 85%)`;
+const gray = `hsl(0, 0%, 75%)`;
 
 export default function CardView({ card, selected }: { card: Card, selected: boolean }) {
     const className = `flex items-center justify-center bg-card border rounded-lg w-40 h-48 p-4 ${selected ? "border-accent shadow-lg shadow-accent/80" : "shadow-md"}`;

@@ -3,6 +3,7 @@ import { GeistSans } from "geist/font/sans";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
 import Link from "next/link";
+import TriadLogo from "@/components/triad-logo";
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -31,8 +32,11 @@ export default function RootLayout({
           <main className="min-h-screen flex flex-col items-center">
             <div className="flex-1 w-full flex flex-col gap-20 items-center">
               <nav className="w-full flex justify-center border-b border-b-foreground/10 h-16">
-                <div className="flex flex-row justify-between w-full sm:w-1/2 gap-12 items-center">
-                  <Link href="/">Triad</Link>
+                <div className="flex flex-row justify-between w-full mx-2 sm:w-1/2 gap-12 items-center">
+                  <Link className="flex flex-row gap-2 items-center" href="/">
+                    <div className="text-xl">Triad</div>
+                    <TriadLogo size={32} color="gray" />
+                  </Link>
                   <HeaderAuth />
                 </div>
               </nav>

@@ -1,15 +1,17 @@
 import { Card } from "@/lib/cards";
 import CardView from "./card-view";
+import TriadLogo from "./triad-logo";
 
 function FaceDownCard({ index, stackSize }: { index: number, stackSize: number }) {
     const rotate = Math.round(index * 8 / stackSize - 6);
     const translateX = Math.round(index * 10 / stackSize);
     const translateY = Math.round(index * 8 / stackSize);
     return <div
-        className="absolute top-0 left-0 flex items-center justify-center bg-card-foreground text-card rounded w-40 h-48 shadow-sm"
+        className="absolute top-0 left-0 flex flex-col gap-2 items-center justify-center bg-card-foreground text-card rounded w-40 h-48 shadow-sm"
         style={{ transform: `rotate(${rotate}deg) translateX(${translateX}px) translateY(-${translateY}px)` }}
     >
-        Triad
+        <div className="text-xl">Triad</div>
+        <TriadLogo size={90} color="gray" />
     </div>;
 }
 
