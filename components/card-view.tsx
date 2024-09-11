@@ -48,13 +48,13 @@ export default function CardView({ card, selected }: { card: Card, selected: boo
     switch (card.shape) {
         case "circle":
             shape = <circle cx={size / 2} cy={size / 2} r={size / 2 -strokeWidth} stroke={color}
-                stroke-width={strokeWidth} fill={fillColor} />;
+                strokeWidth={strokeWidth} fill={fillColor} />;
             break;
         case "triangle":
-            shape = <polygon points={`${size / 2},${strokeWidth} ${size-strokeWidth},${size-strokeWidth} ${strokeWidth},${size-strokeWidth}`} stroke={color} stroke-width={strokeWidth} fill={fillColor} />;
+            shape = <polygon points={`${size / 2},${strokeWidth} ${size-strokeWidth},${size-strokeWidth} ${strokeWidth},${size-strokeWidth}`} stroke={color} strokeWidth={strokeWidth} fill={fillColor} />;
             break;
         case "square":
-            shape = <rect x={strokeWidth} y={strokeWidth} width={size-2*strokeWidth} height={size-2*strokeWidth} stroke={color} stroke-width={strokeWidth} fill={fillColor} />;
+            shape = <rect x={strokeWidth} y={strokeWidth} width={size-2*strokeWidth} height={size-2*strokeWidth} stroke={color} strokeWidth={strokeWidth} fill={fillColor} />;
             break;
     }
 

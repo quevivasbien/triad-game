@@ -42,9 +42,11 @@ export default function TableView({ table }: { table: Table }) {
     const cards = table.cards.map((card, i) => {
         const flashOverlay = (flash.includes(i)) ? <div className="absolute inset-0 bg-red-200/60" /> : null;
         return (
-            <button onClick={() => selectCard(i)} style={{ transform: `rotate(${rotations[i]}deg)` }}>
+            <button
+                onClick={() => selectCard(i)} style={{ transform: `rotate(${rotations[i]}deg)` }}
+                key={card.color + card.number + card.shape + card.pattern + selected}
+            >
                 <CardView
-                    key={card.color + card.number + card.shape + card.pattern + selected}
                     card={card} selected={selected.includes(i)}
                 />
                 {flashOverlay}

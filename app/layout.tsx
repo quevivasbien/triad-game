@@ -1,4 +1,3 @@
-import HeaderAuth from "@/components/header-auth";
 import { GeistSans } from "geist/font/sans";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
@@ -37,7 +36,6 @@ export default function RootLayout({
                     <div className="text-xl">Triad</div>
                     <TriadLogo size={32} color="gray" />
                   </Link>
-                  <HeaderAuth />
                 </div>
               </nav>
               <div className="flex flex-col gap-20 max-w-5xl p-5">

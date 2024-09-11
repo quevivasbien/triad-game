@@ -32,8 +32,13 @@ export default function CardStack({ cards, faceUp = false }: { cards: Card[], fa
         cards.map((card, i) => <FaceUpCard key={i} card={card} index={i} stackSize={cards.length} />) :
         cards.map((card, i) => <FaceDownCard key={i} index={i} stackSize={cards.length} />);
     return (
-        <div className="relative" key={cards.length}>
-            {cardViews}
+        <div className="flex flex-col gap-4">
+            <div className="text-center">
+                { faceUp ? `${cards.length} cards collected` : `${cards.length} cards remaining` }
+            </div>
+            <div className="relative w-40 h-48 border rounded" key={cards.length}>
+                {cardViews}
+            </div>
         </div>
     );
 }
