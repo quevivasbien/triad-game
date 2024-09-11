@@ -29,12 +29,14 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <main className="min-h-screen flex flex-col items-center">
-            <div className="flex-1 w-full flex flex-col gap-20 items-center">
-              <nav className="w-full flex justify-center border-b border-b-foreground/10 h-16">
-                <div className="flex flex-row justify-between w-full mx-2 sm:w-1/2 gap-12 items-center">
+            <div className="flex-1 w-full flex flex-col gap-2 sm:gap-8 items-center">
+              <nav className="w-full flex justify-center py-4 border-b border-b-foreground/10">
+                <div className="flex flex-row justify-between items-center w-full mx-12 sm:w-1/2 gap-12">
                   <Link className="flex flex-row gap-2 items-center" href="/">
-                    <div className="text-xl">Triad</div>
-                    <TriadLogo size={32} color="gray" />
+                    <div className="text-xl sm:text-3xl">Triad</div>
+                    <div className="w-8 h-8 sm:w-12 sm:h-12">
+                      <TriadLogo color="gray" />
+                    </div>
                   </Link>
                   <div className="flex flex-row gap-8">
                     <Link href="/learn">Learn</Link>
@@ -42,7 +44,7 @@ export default function RootLayout({
                   </div>
                 </div>
               </nav>
-              <div className="flex flex-col gap-20 max-w-5xl p-5">
+              <div className="flex flex-col gap-4 max-w-5xl p-5">
                 {children}
               </div>
             </div>

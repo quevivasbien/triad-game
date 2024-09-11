@@ -34,7 +34,7 @@ export default function Game() {
     }
 
     return (
-        <div className="relative flex flex-col gap-12">
+        <div className="relative flex flex-col gap-6 sm:gap-12">
             <TableView table={table} />
             <div className="flex flex-row justify-between items-center border-t border-t-foreground/10 p-8">
                 <Button onClick={() => setShowConfirmRestart(true)}>Restart</Button>

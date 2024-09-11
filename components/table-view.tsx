@@ -63,11 +63,11 @@ export default function TableView({ table }: { table: Table }) {
 
     // Only allow rendering on the client, to avoid issues with failed hydration since cards are dynamic
     return isClient ? (
-        <div className="flex flex-col gap-16">
+        <div className="flex flex-col gap-8 sm:gap-16">
             <div className="grid grid-cols-3 gap-4">
                 {cards}
             </div>
-            <div className="flex flex-row justify-between">
+            <div className="flex flex-row justify-between gap-4">
                 <CardStack cards={table.deck.cards} />
                 <CardStack cards={table.collected} faceUp={true} />
             </div>
