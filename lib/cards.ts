@@ -97,6 +97,11 @@ export class Table {
             this.deck = new Deck();
             this.cards = this.deck.draw(nCards);
         }
+        // this.deck.cards.splice(0, 66);
+    }
+
+    shuffleVisible() {
+        shuffle(this.cards);
     }
     
     findAllTriads(extraCards: Card[] = []) {
@@ -113,7 +118,18 @@ export class Table {
             }
         }
         console.log(`found ${triads.length} triads`);
+        triads.forEach(t => console.log(t));
         return triads;
+    }
+
+    getHint() {
+        const triads = this.findAllTriads();
+        if (triads.length > 0) {
+            const i = Math.floor(Math.random() * triads.length);
+            const j = Math.floor(Math.random() * 3);
+            return triads[i][j];
+        }
+        return null;
     }
 
     /**
@@ -154,12 +170,13 @@ export class Table {
     }
 
     attemptRemoveTriad(cardIndices: number[]) {
+        let gameIsOver = false;
         if (cardIndices.length !== 3) {
-            return false;
+            return { success: false, gameIsOver };
         }
-        const triad =  isTriad(this.cards[cardIndices[0]], this.cards[cardIndices[1]], this.cards[cardIndices[2]]);
+        const success =  isTriad(this.cards[cardIndices[0]], this.cards[cardIndices[1]], this.cards[cardIndices[2]]);
 
-        if (triad) {
+        if (success) {
             this.collected = [
                 ...this.collected,
                 this.cards[cardIndices[0]],
@@ -167,10 +184,9 @@ export class Table {
                 this.cards[cardIndices[2]],
             ];
             this.cards = this.cards.filter((card, i) => !cardIndices.includes(i));
-            const gameIsOver = !this.drawNewCards();
-            // console.log("gameIsOver", gameIsOver);
+            gameIsOver = !this.drawNewCards();
         }
 
-        return triad;
+        return {  success, gameIsOver };
     }
 }
