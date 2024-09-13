@@ -19,7 +19,7 @@ function TimeDisplay({ time }: { time: number }) {
 }
 
 export default function Game() {
-    const [tableState, setTableState] = useState(0);
+    const [table, setTable] = useState(() => new Table());
     const [showConfirmRestart, setShowConfirmRestart] = useState(false);
     const [gameOverInfo, setGameOverInfo] = useState<GameOverInfo | null>(null);
 
@@ -35,11 +35,8 @@ export default function Game() {
         }
     }, [timePaused]);
 
-    // Memoize table so its state isn't reset when other state changes
-    const table = useMemo(() => new Table(), [tableState]);
-
     function restartGame() {
-        setTableState(tableState + 1);
+        setTable(new Table());
         setTime(0);
         setTimePaused(false);
         setShowConfirmRestart(false);
