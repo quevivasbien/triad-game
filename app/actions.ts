@@ -16,3 +16,19 @@ export const signInAnonymouslyAction = async (token: string) => {
   }
   return redirect("/");
 }
+
+export const createLobbyAction = async (name: string) => {
+  const supabase = createClient();
+  const { error } = await supabase.from("lobbies").upsert(
+    {
+      created_at: new Date(),
+      name,
+      guest_ids: [],
+    },
+    {
+      ignoreDuplicates: false,
+      onConflict: "host_id",
+    }
+  );
+  return error;
+}

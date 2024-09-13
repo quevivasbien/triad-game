@@ -45,9 +45,7 @@ export default function RootLayout({
                   </div>
                 </div>
               </nav>
-              <div className="flex flex-col gap-4 max-w-5xl p-5">
-                {children}
-              </div>
+              {children}
             </div>
           </main>
         </ThemeProvider>
