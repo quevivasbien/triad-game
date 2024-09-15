@@ -19,6 +19,16 @@ function TimeDisplay({ time }: { time: number }) {
 }
 
 export default function Game() {
+    useEffect(() => {
+        window.onbeforeunload = (event) => {
+            event.preventDefault();
+        };
+
+        return () => {
+            window.onbeforeunload = null;
+        };
+    }, []);
+
     const [tableState, setTableState] = useState(0);
     const [showConfirmRestart, setShowConfirmRestart] = useState(false);
     const [gameOverInfo, setGameOverInfo] = useState<GameOverInfo | null>(null);

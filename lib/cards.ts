@@ -3,6 +3,13 @@ export type Number = 1 | 2 | 3;
 export type Shape = "circle" | "triangle" | "square";
 export type Pattern = "solid" | "striped" | "outlined";
 
+/**
+ * Computes the Cartesian product of the given arrays.
+ * @param args The arrays to take the product of.
+ * @returns An array of arrays, where each inner array is an element of the Cartesian product.
+ * @example
+ * product([1, 2], ['a', 'b']) // [[1, 'a'], [1, 'b'], [2, 'a'], [2, 'b']]
+ */
 function product(...args: any[][]): any[][] {
     return args.reduce((a, b) => a.flatMap((d: any) => b.map((e: any) => [d, e].flat())));
 }
@@ -104,14 +111,20 @@ export class Table {
         shuffle(this.cards);
     }
     
-    findAllTriads(extraCards: Card[] = []) {
+    /**
+     * Finds all triads in the table.
+     *
+     * @returns An array of arrays of indices of the cards that form a triad.
+     *          Each subarray contains 3 indices, and the indices are sorted
+     *          in ascending order.
+     */
+    findAllTriads() {
         // console.log("Looking for triads with cards", this.cards, "and", extraCards);
-        const cards = [...this.cards, ...extraCards];
         const triads = [];
-        for (let i = 0; i < cards.length; i++) {
-            for (let j = i + 1; j < cards.length; j++) {
-                for (let k = j + 1; k < cards.length; k++) {
-                    if (isTriad(cards[i], cards[j], cards[k])) {
+        for (let i = 0; i < this.cards.length; i++) {
+            for (let j = i + 1; j < this.cards.length; j++) {
+                for (let k = j + 1; k < this.cards.length; k++) {
+                    if (isTriad(this.cards[i], this.cards[j], this.cards[k])) {
                         triads.push([i, j, k]);
                     }
                 }
@@ -122,6 +135,11 @@ export class Table {
         return triads;
     }
 
+    /**
+     * Returns a random index of a card that is part of a triad, or null if no triad is possible.
+     * 
+     * @returns A random index of a card that is part of a triad, or null if no triad is possible.
+     */
     getHint() {
         const triads = this.findAllTriads();
         if (triads.length > 0) {
@@ -133,19 +151,20 @@ export class Table {
     }
 
     /**
-     * Draws three new cards and checks if at least one triad is possible with the new cards.
-     * If a triad is possible, adds the new cards to the table and returns true.
-     * If no triad is possible, redraws from the deck until a triad is possible or the deck is exhausted.
-     * @returns Whether or not it is possible to create a triad with the new cards.
+     * Draws 3 new cards from the deck and replaces the cards at `idx1`, `idx2`, and `idx3` with them.
+     * If at least one triad is possible with the new cards, returns the new cards.
+     * Otherwise, redraws until a triad is possible or the deck is exhausted, and returns null.
      */
-    drawNewCards() {
+    drawNewCards(idx1: number, idx2: number, idx3: number) {
         // console.log("drawNewCards");
         const newCards = this.deck.draw(3);
+        this.cards[idx1] = newCards[0];
+        this.cards[idx2] = newCards[1];
+        this.cards[idx3] = newCards[2];
         // Check if at least one triad is possible with the new cards
-        const possibleTriads = this.findAllTriads(newCards);
+        const possibleTriads = this.findAllTriads();
         if (possibleTriads.length > 0) {
-            this.cards = [...this.cards, ...newCards];
-            return true;
+            return newCards;
         }
 
         // console.log("Redrawing...");
@@ -156,20 +175,31 @@ export class Table {
             for (let j = 0; j < 3; j++) {
                 // Replace one of the new cards with the other card
                 newCards.push(otherCard);
-                otherCard = newCards.shift()!;
-                if (this.findAllTriads(newCards).length > 0) {
-                    this.cards = [...this.cards, ...newCards];
+                otherCard = newCards.shift()!;  
+                this.cards[idx1] = newCards[0];
+                this.cards[idx2] = newCards[1];
+                this.cards[idx3] = newCards[2];
+                if (this.findAllTriads().length > 0) {
                     // Put the other card back on the bottom of the deck
                     this.deck.reinsert(otherCard);
-                    return true;
+                    return newCards;
                 }
             }
             this.deck.reinsert(otherCard);
         }
-        return false;
+        return null;
     }
 
-    attemptRemoveTriad(cardIndices: number[]) {
+    /**
+     * Attempt to remove a triad from the table, then draw new cards to replace
+     * the removed cards.
+     *
+     * @param cardIndices Indices of the cards to attempt to remove.
+     * @returns An object with a boolean property `success` indicating whether
+     * the triad was successfully removed, and a boolean property `gameIsOver`
+     * indicating whether the game is over after attempting to remove the triad.
+     */
+    attemptRemoveTriad(cardIndices: [number, number, number]) {
         let gameIsOver = false;
         if (cardIndices.length !== 3) {
             return { success: false, gameIsOver };
@@ -183,8 +213,8 @@ export class Table {
                 this.cards[cardIndices[1]],
                 this.cards[cardIndices[2]],
             ];
-            this.cards = this.cards.filter((card, i) => !cardIndices.includes(i));
-            gameIsOver = !this.drawNewCards();
+            const newCards = this.drawNewCards(...cardIndices);
+            gameIsOver = newCards === null;
         }
 
         return {  success, gameIsOver };
