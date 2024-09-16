@@ -119,7 +119,7 @@ export class Table {
      *          in ascending order.
      */
     findAllTriads() {
-        // console.log("Looking for triads with cards", this.cards, "and", extraCards);
+        console.log("Looking for triads with cards", this.cards);
         const triads = [];
         for (let i = 0; i < this.cards.length; i++) {
             for (let j = i + 1; j < this.cards.length; j++) {
@@ -152,19 +152,25 @@ export class Table {
 
     /**
      * Draws 3 new cards from the deck and replaces the cards at `idx1`, `idx2`, and `idx3` with them.
-     * If at least one triad is possible with the new cards, returns the new cards.
-     * Otherwise, redraws until a triad is possible or the deck is exhausted, and returns null.
+     * If at least one triad is possible with the new cards, returns true.
+     * Otherwise, redraws until a triad is possible or the deck is exhausted,
+     * returning true if a triad is found, or false if the deck is exhausted and no triads are found.
      */
-    drawNewCards(idx1: number, idx2: number, idx3: number) {
+    drawNewCards(idx1: number, idx2: number, idx3: number): boolean {
         // console.log("drawNewCards");
         const newCards = this.deck.draw(3);
         this.cards[idx1] = newCards[0];
         this.cards[idx2] = newCards[1];
         this.cards[idx3] = newCards[2];
+        if (newCards.length < 3) {
+            // Special case: The deck is exhausted, so we just need to check if we can make a triad with these cards, and report game over if not.
+            this.cards = this.cards.filter(c => c !== undefined);
+            return this.findAllTriads().length !== 0;
+        }
         // Check if at least one triad is possible with the new cards
         const possibleTriads = this.findAllTriads();
         if (possibleTriads.length > 0) {
-            return newCards;
+            return true;
         }
 
         // console.log("Redrawing...");
@@ -182,12 +188,12 @@ export class Table {
                 if (this.findAllTriads().length > 0) {
                     // Put the other card back on the bottom of the deck
                     this.deck.reinsert(otherCard);
-                    return newCards;
+                    return true;
                 }
             }
             this.deck.reinsert(otherCard);
         }
-        return null;
+        return false;
     }
 
     /**
@@ -201,9 +207,6 @@ export class Table {
      */
     attemptRemoveTriad(cardIndices: [number, number, number]) {
         let gameIsOver = false;
-        if (cardIndices.length !== 3) {
-            return { success: false, gameIsOver };
-        }
         const success =  isTriad(this.cards[cardIndices[0]], this.cards[cardIndices[1]], this.cards[cardIndices[2]]);
 
         if (success) {
@@ -213,8 +216,7 @@ export class Table {
                 this.cards[cardIndices[1]],
                 this.cards[cardIndices[2]],
             ];
-            const newCards = this.drawNewCards(...cardIndices);
-            gameIsOver = newCards === null;
+            gameIsOver = !this.drawNewCards(...cardIndices);
         }
 
         return {  success, gameIsOver };

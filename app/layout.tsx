@@ -39,8 +39,9 @@ export default function RootLayout({
                     </div>
                   </Link>
                   <div className="flex flex-row gap-8">
-                    <Link href="/learn">Learn</Link>
-                    <Link href="/">Play</Link>
+                    <Link className="text-lg sm:text-xl hover:text-muted" href="/learn">Learn</Link>
+                    <Link className="text-lg sm:text-xl hover:text-muted" href="/high-scores">High Scores</Link>
+                    <Link className="text-lg sm:text-xl hover:text-muted" href="/">Play</Link>
                   </div>
                 </div>
               </nav>
