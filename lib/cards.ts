@@ -57,25 +57,32 @@ function isTriad(c1: Card, c2: Card, c3: Card) {
     return true;
 }
 
-export class Card {
-    constructor(
-        public readonly color: Color,
-        public readonly number: Number,
-        public readonly shape: Shape,
-        public readonly pattern: Pattern
-    ) { }
+export interface Card {
+    color: Color,
+    number: Number,
+    shape: Shape,
+    pattern: Pattern
 }
 
 export class Deck {
     cards: Card[];
 
-    constructor() {
+    constructor(cards?: Card[]) {
+        if (cards) {
+            this.cards = cards;
+            return;
+        }
         this.cards = (product(
             ["red", "green", "blue"],
             [1, 2, 3],
             ["circle", "triangle", "square"],
             ["solid", "striped", "outlined"],
-        ) as [Color, Number, Shape, Pattern][]).map(features => new Card(...features));
+        ) as [Color, Number, Shape, Pattern][])
+            .map(([ color, number, shape, pattern ]) => {
+                return {
+                    color, number, shape, pattern
+                };
+            });
 
         shuffle(this.cards);
     }
@@ -94,17 +101,37 @@ export class Table {
     cards: Card[];
     collected: Card[] = [];
     
-    constructor(private nCards: number = 12) {
-        console.log("Creating table with", nCards, "cards");
+    constructor(components?: { deck: Deck, cards: Card[], collected: Card[] }) {
+        if (components) {
+            this.deck = components.deck;
+            this.cards = components.cards;
+            this.collected = components.collected;
+            return;
+        }
         this.deck = new Deck();
-        this.cards = this.deck.draw(nCards);
+        this.cards = this.deck.draw(12);
 
         // Make sure a triad is possible
         while (this.findAllTriads().length === 0) {
             this.deck = new Deck();
-            this.cards = this.deck.draw(nCards);
+            this.cards = this.deck.draw(12);
         }
         // this.deck.cards.splice(0, 66);
+    }
+
+    toPlain() {
+        return {
+            deck: this.deck.cards,
+            cards: this.cards,
+            collected: this.collected
+        };
+    }
+
+    static fromPlain(plain: { deck: Card[], cards: Card[], collected: Card[] }) {
+        const deck = new Deck(plain.deck);
+        const cards = plain.cards;
+        const collected = plain.collected;
+        return new Table({ deck, cards, collected });
     }
 
     shuffleVisible() {
@@ -119,7 +146,7 @@ export class Table {
      *          in ascending order.
      */
     findAllTriads() {
-        console.log("Looking for triads with cards", this.cards);
+        // console.log("Looking for triads with cards", this.cards);
         const triads = [];
         for (let i = 0; i < this.cards.length; i++) {
             for (let j = i + 1; j < this.cards.length; j++) {

@@ -100,31 +100,67 @@ function TimeDisplay({ time }: { time: number }) {
     return <div className="text-lg">{secondsToTimeString(time)}</div>;
 }
 
+function loadState() {
+    // Get table from local storage if it exists, otherwise create new table
+    const data = localStorage.getItem("savedGameState");
+    if (data) {
+        const { time, table } = JSON.parse(data);
+        return {
+            time,
+            table: Table.fromPlain(table)
+        };
+    }
+    return { time: 0, table: new Table() };
+}
+
+function saveGameState(time: number, table: Table) {
+    const data = {
+        time,
+        table: table.toPlain()
+    }
+    localStorage.setItem("savedGameState", JSON.stringify(data));
+}
+
 export default function Game() {
     const router = useRouter();
 
-    const [tableState, setTableState] = useState(0);
+    const [table, setTable] = useState<Table | null>(null);
     const [showConfirmRestart, setShowConfirmRestart] = useState(false);
     const [gameOverInfo, setGameOverInfo] = useState<GameOverInfo | null>(null);
     const [showSubmitScore, setShowSubmitScore] = useState(false);
-
+    
     const [time, setTime] = useState(0);
     const [timePaused, setTimePaused] = useState(false);
+    const [saveState, setSaveState] = useState(0);
 
     useEffect(() => {
+        const { time, table } = loadState();
+        setTime(time);
+        setTable(table);
+    }, [])
+
+    useEffect(() => {
+        if (table) {
+            saveGameState(time, table);
+        }
+    }, [saveState]);
+    useEffect(() => {
         if (!timePaused) {
-            const timer = setInterval(() => {
+            const timeTicker = setInterval(() => {
                 setTime(time => time + 1);
-            }, 1000);
-            return () => clearInterval(timer);
+            }, 1_000);
+            const saveStateTicker = setInterval(() => {
+                setSaveState(saveState => saveState + 1);
+            }, 5_000);
+            return () => {
+                clearInterval(timeTicker);
+                clearInterval(saveStateTicker);
+            };
         }
     }, [timePaused]);
 
-    // Memoize table so its state isn't reset when other state changes
-    const table = useMemo(() => new Table(), [tableState]);
-
     function restartGame() {
-        setTableState(tableState + 1);
+        setTable(new Table());
         setTime(0);
         setTimePaused(false);
         setShowConfirmRestart(false);
@@ -143,7 +179,7 @@ export default function Game() {
 
     return (
         <div className="relative flex flex-col gap-6 sm:gap-12">
-            {table ? <TableView table={table} gameoverCallback={gameOver} /> : null}
+            {table ? <TableView table={table} gameoverCallback={gameOver} /> : <div className="text-center text-lg">Loading...</div>}
             <div className="flex flex-row justify-between items-center border-t border-t-foreground/10 p-8">
                 <Button onClick={() => setShowConfirmRestart(true)}>Restart</Button>
                 <TimeDisplay time={time} />
