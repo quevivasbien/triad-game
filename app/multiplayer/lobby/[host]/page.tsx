@@ -14,8 +14,7 @@ interface LobbyMemberData {
     }[];
 }
 
-function HostPage({ myUID, initialLobbyState }: { myUID: string, initialLobbyState: LobbyMemberData }) {
-    console.log("loading host page");
+function UserList({ myUID, initialLobbyState, isHost }: { myUID: string, initialLobbyState: LobbyMemberData, isHost: boolean }) {
     const searchParams = useSearchParams();
     const password = searchParams.get("pwd");   
 
@@ -53,9 +52,9 @@ function HostPage({ myUID, initialLobbyState }: { myUID: string, initialLobbySta
             });
         }
 
-        // Watch for new users trying to join
-        channel
-            .on(
+        if (isHost) {
+            // Watch for new users trying to join
+            channel.on(
                 "broadcast",
                 { event: "join" },
                 async (payload) => {
@@ -92,7 +91,11 @@ function HostPage({ myUID, initialLobbyState }: { myUID: string, initialLobbySta
                     // Inform the new member that they've been admitted
                     informJoiner(uid, true);
                 }
-            )
+            );
+        }
+
+        // Keep track of who's currently in the lobby
+        channel
             .on(
                 "presence",
                 { event: "sync" },
@@ -100,7 +103,8 @@ function HostPage({ myUID, initialLobbyState }: { myUID: string, initialLobbySta
                     const presenceState = channel.presenceState();
                     console.log("Received presence sync", presenceState);
                     let membersPresent = Object.values(presenceState)
-                        .flatMap((entry) => Object.values(entry).map((x) => x.uid));
+                        .flatMap((entry) => Object.values(entry).map((x) => 'uid' in x ? x.uid : null))
+                        .filter(x => x !== null) as string[];
                     setMembersPresent(membersPresent);
                 }
             )
@@ -109,6 +113,17 @@ function HostPage({ myUID, initialLobbyState }: { myUID: string, initialLobbySta
                 { event: "join" },
                 ({ key, newPresences }) => {
                     console.log("Received presence join", key, newPresences);
+                    setMembersPresent((members) => {
+                        const newMembers: string[] = [];
+                        Object.values(newPresences).forEach((value) => {
+                            const uid = value.uid;
+                            if (!uid || members.includes(uid)) {
+                                return;
+                            }
+                            newMembers.push(uid);
+                        });
+                        return [...members, ...newMembers];
+                    });
                 }
             )
             .on(
@@ -116,9 +131,19 @@ function HostPage({ myUID, initialLobbyState }: { myUID: string, initialLobbySta
                 { event: "leave" },
                 ({ key, leftPresences }) => {
                     console.log("Received presence leave", key, leftPresences);
+                    const leftMembers: string[] = [];
+                    Object.values(leftPresences).forEach((value) => {
+                        const uid = value.uid;
+                        if (!uid) {
+                            return;
+                        }
+                        leftMembers.push(uid);
+                    });
+                    setMembersPresent(members => members.filter(x => !leftMembers.includes(x)));
                 }
-            )
-            .subscribe(async (status) => {   
+            );
+
+        channel.subscribe(async (status) => {   
                 if (status !== "SUBSCRIBED") {
                     console.error("Failed to subscribe to channel", status);
                     return;
@@ -138,7 +163,7 @@ function HostPage({ myUID, initialLobbyState }: { myUID: string, initialLobbySta
 
     return (
         <div className="flex flex-col gap-8">
-            <h1>Hosted lobby</h1>
+            <h1>{isHost ? "Hosted lobby" : "Guest lobby"}</h1>
             {password ? <p>Password: {password}</p> : null}
             <div>
             <h2>Members</h2>
@@ -149,64 +174,7 @@ function HostPage({ myUID, initialLobbyState }: { myUID: string, initialLobbySta
                 </div>
             </div>
         </div>
-    )
-}
-
-function GuestPage({ myUID, initialLobbyState }: { myUID: string, initialLobbyState: LobbyMemberData }) {
-    console.log("loading guest page");
-
-    const supabase = createClient();
-
-    // Load the initial lobby state, only on initial render
-    const [lobbyState, setLobbyState] = useState<LobbyMemberData>(() => initialLobbyState);
-
-    // Listen for changes to the lobby state
-    supabase.channel("lobbyMembers")
-        .on(
-            "postgres_changes",
-            { event: "UPDATE", schema: "public", table: "lobbyMembers", filter: `host_id=eq.${lobbyState.host_id}` },
-            (payload: RealtimePostgresUpdatePayload<LobbyMemberData>) => {
-                console.log("received Update payload", payload);
-                setLobbyState(payload.new);
-            }
-        )
-        .subscribe();
-
-    // Create realtime channel to communicate with lobby members
-    const channel = supabase.channel("lobby-" + initialLobbyState.host_id)
-        .subscribe(async (status) => {
-            if (status !== "SUBSCRIBED") {
-                console.error("Failed to subscribe to channel", status);
-                return;
-            }
-
-            const presenceTrackStatus = await channel.track({
-                uid: myUID,
-                online_at: new Date().toISOString(),
-            });
-            console.log("Got status from presence tracker", presenceTrackStatus);
-        });
-
-    channel.track({
-        uid: myUID,
-        online_at: new Date().toISOString(),
-    }).then((status) => {
-        console.log("Got status from presence tracker", status);
-    });
-
-    return (
-        <div className="flex flex-col gap-8">
-            <h1>Guest lobby</h1>
-            <div>
-                <h2>Members</h2>
-                <div className="flex flex-col m-2 gap-4">
-                    {lobbyState?.members.map(({ uid, name }) => (
-                        <div key={uid}>{name}{uid === myUID ? " (you)" : ""}</div>
-                    ))}
-                </div>
-            </div>
-        </div>
-    )
+    );
 }
 
 export default function Page() {
@@ -275,10 +243,6 @@ export default function Page() {
     }
 
     return (
-        (user.id === host) ? (
-            <HostPage myUID={user.id} initialLobbyState={initialLobbyState} /> 
-        ) : (
-            <GuestPage myUID={user.id} initialLobbyState={initialLobbyState} />
-        )
+        <UserList myUID={user.id} initialLobbyState={initialLobbyState} isHost={user.id === host} />
     );
 }

@@ -6,6 +6,7 @@ import { RealtimePostgresInsertPayload, RealtimePostgresUpdatePayload } from "@s
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createLobbyAction } from "../actions";
+import { Input } from "@/components/ui/input";
 
 interface LobbyData {
     host_id: string;
@@ -37,9 +38,9 @@ function Lobby({
                 <div>Host:</div>
                 <div className="font-bold">{lobby.name}</div>
             </div>
-            <input
+            <Input
                 type="text"
-                className="mt-1 rounded-md border border-border px-3 py-2 shadow-sm focus:border-accent focus:ring-accent"
+                className=""
                 required
                 minLength={3}
                 maxLength={16}
@@ -213,9 +214,9 @@ export default function MultiplayerPage() {
                 <h2 className="text-lg sm:text-2xl">Create a new lobby</h2>
                 <label className="flex flex-row flex-wrap justify-between items-center gap-x-4">
                     Your name:
-                    <input
+                    <Input
                         type="text"
-                        className="mt-1 rounded-md border border-border px-3 py-2 shadow-sm focus:border-accent focus:ring-accent"
+                        className="w-1/2"
                         required
                         maxLength={16}
                         onChange={e => setLobbyName(e.target.value)}
@@ -223,9 +224,9 @@ export default function MultiplayerPage() {
                 </label>
                 <label className="flex flex-row flex-wrap justify-between items-center gap-x-4">
                     Lobby password:
-                    <input
+                    <Input
                         type="password"
-                        className="mt-1 rounded-md border border-border px-3 py-2 shadow-sm focus:border-accent focus:ring-accent"
+                        className="w-1/2"
                         value={lobbyPassword}
                         maxLength={32}
                         onChange={e => setLobbyPassword(e.target.value)}
