@@ -121,6 +121,10 @@ function saveGameState(time: number, table: Table) {
     localStorage.setItem("savedGameState", JSON.stringify(data));
 }
 
+function clearGameState() {
+    localStorage.removeItem("savedGameState");
+}
+
 export default function Game() {
     const router = useRouter();
 
@@ -169,7 +173,8 @@ export default function Game() {
 
     function gameOver(info: GameOverInfo) {
         setTimePaused(true);
-        setGameOverInfo(info);
+        setGameOverInfo(info);  
+        clearGameState();
         eligibleForHighScore(time, info).then((eligible) => {
             if (eligible) {
                 setShowSubmitScore(true);
