@@ -42,28 +42,30 @@ function HighScoreTable({ highScores }: { highScores: Score[] }) {
         return <div className="text-center text-lg">No high scores yet</div>
     }
     return (
-        <table className="table-auto w-full border-separate border-spacing-0 text-lg">
-            <thead>
-                <tr>
-                    <th className="px-4 py-2 border-b-2 border-border"></th>
-                    <th className="px-4 py-2 border-b-2 border-border">User</th>
-                    <th className="px-4 py-2 border-b-2 border-border">Time</th>
-                    <th className="px-4 py-2 border-b-2 border-border">Hints</th>
-                    <th className="px-4 py-2 border-b-2 border-border">Mistakes</th>
-                </tr>
-            </thead>
-            <tbody>
-                {highScores.map((score, i) => (
-                    <tr key={score.userName + i + score.timeSeconds}>
-                        <td className="px-4 py-2 border-b border-border">{i+1}</td>
-                        <td className="px-4 py-2 border-b border-border">{score.userName}</td>
-                        <td className="px-4 py-2 border-b border-border">{secondsToTimeString(score.timeSeconds)}</td>
-                        <td className="px-4 py-2 border-b border-border">{score.nHints}</td>
-                        <td className="px-4 py-2 border-b border-border">{score.nMistakes}</td>
+        <div className="overflow-x-auto shadow-inner p-2 sm:p-4">
+            <table className="table-auto w-full border-separate border-spacing-0 text-base sm:text-lg">
+                <thead>
+                    <tr>
+                        <th className="px-4 py-2 border-b-2 border-border"></th>
+                        <th className="px-4 py-2 border-b-2 border-border">User</th>
+                        <th className="px-4 py-2 border-b-2 border-border">Time</th>
+                        <th className="px-4 py-2 border-b-2 border-border">Hints</th>
+                        <th className="px-4 py-2 border-b-2 border-border">Mistakes</th>
                     </tr>
-                ))}
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    {highScores.map((score, i) => (
+                        <tr key={score.userName + i + score.timeSeconds}>
+                            <td className="px-4 py-2 border-b border-border">{i+1}</td>
+                            <td className="px-4 py-2 border-b border-border">{score.userName}</td>
+                            <td className="px-4 py-2 border-b border-border">{secondsToTimeString(score.timeSeconds)}</td>
+                            <td className="px-4 py-2 border-b border-border">{score.nHints}</td>
+                            <td className="px-4 py-2 border-b border-border">{score.nMistakes}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
     )
 }
 
@@ -83,10 +85,10 @@ export default function HighScoresPage() {
 
     return (
         <div className="flex flex-col gap-4">
-            <h1 className="text-3xl">High Scores</h1>
+            <h1 className="text-xl sm:text-3xl">High Scores</h1>
             <label className="flex flex-row gap-2">
                 <input type="checkbox" checked={filterNoHints} onChange={() => setFilterNoHints(!filterNoHints)} />
-                Don't show scores for games with hints
+                <div className="text-sm sm:text-base">Don't show scores for games with hints</div>
             </label>
             {highScores === null ? <div className="text-lg">Loading...</div> : <HighScoreTable highScores={highScores} />}
         </div>

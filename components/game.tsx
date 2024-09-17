@@ -1,7 +1,7 @@
 "use client";
 
 import { Table } from "@/lib/cards";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import TableView from "./table-view";
 import { Button } from "./ui/button";
 import { GameOverInfo } from "@/lib/types";
@@ -183,9 +183,9 @@ export default function Game() {
     }
 
     return (
-        <div className="relative flex flex-col gap-6 sm:gap-12">
+        <div className="relative flex flex-col items-center gap-6 sm:gap-12">
             {table ? <TableView table={table} gameoverCallback={gameOver} /> : <div className="text-center text-lg">Loading...</div>}
-            <div className="flex flex-row justify-between items-center border-t border-t-foreground/10 p-8">
+            <div className="flex flex-row w-full max-w-xl justify-between items-center border-t border-t-foreground/10 p-8 gap-4">
                 <Button onClick={() => setShowConfirmRestart(true)}>Restart</Button>
                 <TimeDisplay time={time} />
             </div>
