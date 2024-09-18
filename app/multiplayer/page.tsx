@@ -2,7 +2,7 @@
 
 import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/utils/supabase/client";
-import { RealtimePostgresInsertPayload, RealtimePostgresUpdatePayload } from "@supabase/supabase-js";
+import { RealtimeChannel, RealtimePostgresInsertPayload, RealtimePostgresUpdatePayload } from "@supabase/supabase-js";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createLobbyAction } from "../actions";
@@ -72,7 +72,7 @@ function Lobbies({
                 } else {
                     state = "disabled";
                 }
-              return <Lobby key={lobby.name} lobby={lobby} joinFunc={joinFunc} state={state} />;
+                return <Lobby key={lobby.name} lobby={lobby} joinFunc={joinFunc} state={state} />;
             })}
         </div>
     ) : (
@@ -100,11 +100,18 @@ export default function MultiplayerPage() {
     }, []);
 
     // Listen to changes to the "lobbies" table
-    supabase
-        .channel("lobbies")
-        .on("postgres_changes", { event: "INSERT", schema: "public", table: "lobbies" }, handleLobbyInsert)
-        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "lobbies" }, handleLobbyUpdate)
-        .subscribe();
+    // Unsubscribe when the component unmounts
+    useEffect(() => {
+        const channel = supabase
+            .channel("lobbies")
+            .on("postgres_changes", { event: "INSERT", schema: "public", table: "lobbies" }, handleLobbyInsert)
+            .on("postgres_changes", { event: "UPDATE", schema: "public", table: "lobbies" }, handleLobbyUpdate)
+            .subscribe();
+
+        return () => {
+            channel.unsubscribe();
+        };
+    }, [])
 
     const [createLobbyError, setCreateLobbyError] = useState<string | null>(null);
 
@@ -137,10 +144,20 @@ export default function MultiplayerPage() {
             return;
         }
         // Go to lobby
-        router.push(`/multiplayer/lobby/${user.id}`);
+        const lobbyPath = `/multiplayer/lobby/${user.id}?uname=${lobbyName}${lobbyPassword ? `&pwd=${lobbyPassword}` : ""}`;
+        router.push(lobbyPath);
     }
 
-    const [lobbyJoinRequested, setLobbyJoinRequested] = useState<string | null>(null);
+    const [lobbyJoinRequested, setLobbyJoinRequested] = useState<{ hostID: string, channel: RealtimeChannel } | null>(null);
+
+    // Clean up join request channel when component unmounts
+    useEffect(() => {
+        return () => {
+            if (lobbyJoinRequested) {
+                lobbyJoinRequested.channel.unsubscribe();
+            }
+        };
+    }, [lobbyJoinRequested]);
 
     async function sendLobbyJoinRequest(hostID: string, name: string, password: string) {
         const user = (await supabase.auth.getUser())?.data.user;
@@ -157,7 +174,7 @@ export default function MultiplayerPage() {
                 console.error("Failed to subscribe to lobby", hostID, status);
                 return;
             }
-            setLobbyJoinRequested(hostID);
+            setLobbyJoinRequested({ hostID, channel });
             channel.send({
                 type: "broadcast",
                 event: "join",
@@ -180,9 +197,10 @@ export default function MultiplayerPage() {
                     }
                     if (admitted) {
                         // Go to the lobby
-                        router.push(`/multiplayer/lobby/${hostID}`);
+                        router.push(`/multiplayer/lobby/${hostID}?uname=${name}`);
                         return;
                     }
+                    channel.unsubscribe();
                     setLobbyJoinRequested(null);
                 }
             )
@@ -191,24 +209,25 @@ export default function MultiplayerPage() {
 
     function handleLobbyInsert(payload: RealtimePostgresInsertPayload<LobbyData>) {
         console.log("received Insert payload", payload);
-        setLobbies([...(lobbies ?? []), payload.new]);
+        setLobbies(lobbies => [...(lobbies ?? []), payload.new]);
     }
 
     function handleLobbyUpdate(payload: RealtimePostgresUpdatePayload<LobbyData>) {
         console.log("received Update payload", payload);
-        const newLobbies = lobbies?.map(lobby => {
-            if (lobby.host_id === payload.old.host_id) {
-                return payload.new;
-            }
-            return lobby;
-        }) ?? [];
-        setLobbies(newLobbies);
+        setLobbies(lobbies => {
+            return lobbies?.map(lobby => {
+                if (lobby.host_id === payload.old.host_id) {
+                    return payload.new;
+                }
+                return lobby;
+            }) ?? [];
+        });
     }
 
     return (
         <div className="flex flex-col gap-4 w-full sm:w-1/2 max-w-xl p-4">
             <h2 className="text-lg sm:text-2xl">Lobbies</h2>
-            <Lobbies lobbies={lobbies} joinFunc={sendLobbyJoinRequest} lobbyJoinRequested={lobbyJoinRequested} />
+            <Lobbies lobbies={lobbies} joinFunc={sendLobbyJoinRequest} lobbyJoinRequested={lobbyJoinRequested?.hostID ?? null} />
 
             <form className="flex flex-col gap-4 p-5 bg-card border rounded" onSubmit={createLobby}>
                 <h2 className="text-lg sm:text-2xl">Create a new lobby</h2>

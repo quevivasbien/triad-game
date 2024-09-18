@@ -36,18 +36,5 @@ export const createLobbyAction = async (name: string) => {
   if (error1) {
     return error1;
   }
-  // Create entry in lobbyMembers table
-  const { error: error2 } = await supabase.from("lobbyMembers").upsert(
-    {
-      members: [{ uid: user.id, name }],
-    },
-    {
-      ignoreDuplicates: false,
-      onConflict: "host_id",
-    }
-  );
-  if (error2) {
-    return error2;
-  }
   return null;
 }
