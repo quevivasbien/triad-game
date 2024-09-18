@@ -18,6 +18,7 @@ export default function TableView({ table, gameoverCallback }: { table: Table, g
     const [greenFlash, setGreenFlash] = useState<number[]>([]);
     const [rotations, setRotations] = useState<number[]>(getRotations(table.cards));
     const [nHints, setNHints] = useState(0);
+    const [nMistakes, setNMistakes] = useState(0);
 
     function selectCard(i: number) {
         if (selected.includes(i)) {
@@ -25,7 +26,7 @@ export default function TableView({ table, gameoverCallback }: { table: Table, g
         } else if (selected.length < 3) {
             const newSelected = [...selected, i];
             if (newSelected.length === 3) {
-                const { success: isTriad, gameIsOver } = table.attemptRemoveTriad(newSelected);
+                const { success: isTriad, gameIsOver } = table.attemptRemoveTriad(newSelected as [number, number, number]);
                 if (isTriad) {
                     setGreenFlash(newSelected);
                     setTimeout(() => {
@@ -37,10 +38,11 @@ export default function TableView({ table, gameoverCallback }: { table: Table, g
                     setTimeout(() => {
                         setRedFlash([]);
                     }, 500);
+                    setNMistakes(nMistakes + 1);
                 }
                 setSelected([]);
                 if (gameIsOver) {
-                    gameoverCallback({ nHints });
+                    gameoverCallback({ nHints, nMistakes });
                 }
             }
             else {

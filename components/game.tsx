@@ -1,37 +1,165 @@
 "use client";
 
 import { Table } from "@/lib/cards";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import TableView from "./table-view";
 import { Button } from "./ui/button";
 import { GameOverInfo } from "@/lib/types";
+import { secondsToTimeString } from "@/utils/utils";
+import { createClient } from "@/utils/supabase/client";
+import { Input } from "./ui/input";
+import { useRouter } from "next/navigation";
+
+async function eligibleForHighScore(time: number, info: GameOverInfo) {
+    const eligibilityThreshold = 10;  // Must be within top this many to qualify
+    const supabase = createClient();
+    // Get top ten completion times
+    let result = await supabase
+        .from("highScores")
+        .select("timeSeconds")
+        .order("timeSeconds", { ascending: true })
+        .limit(eligibilityThreshold);
+    if (result.error) {
+        console.error(result.error);
+        return false;
+    }
+    // Check if better than the eligibilityThresholdth completion time
+    if (
+        result.data.length < eligibilityThreshold ||
+        time < result.data[eligibilityThreshold - 1].timeSeconds
+    ) {
+        return true;
+    }
+    // Now do the same thing, but filtering for no hints
+    result = await supabase
+        .from("highScores")
+        .select("timeSeconds")
+        .eq("nHints", 0)
+        .order("timeSeconds", { ascending: true })
+        .limit(eligibilityThreshold);
+    if (result.error) {
+        console.error(result.error);
+        return false;
+    }
+    if (
+        result.data.length < eligibilityThreshold ||
+        time < result.data[eligibilityThreshold - 1].timeSeconds
+    ) {
+        return true;
+    }
+    return false;
+}
+
+async function submitScore(userName: string, time: number, info: GameOverInfo) {
+    const supabase = createClient();
+    console.log("Submitting score", userName, time, info);
+    const { error } = await supabase.from("highScores").insert({
+        userName,
+        timeSeconds: time,
+        nHints: info.nHints,
+        nMistakes: info.nMistakes
+    });
+    return error;
+}
+
+function SubmitScore({ time, info }: { time: number, info: GameOverInfo }) {
+    const [name, setName] = useState("");
+    const [submitted, setSubmitted] = useState(false);
+
+    function submit(event: React.FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        setSubmitted(true);
+        submitScore(name, time, info).then((error) => {
+            if (error) {
+                console.error(error);
+            }
+        });
+    }
+
+    return (
+        <div className="flex flex-col gap-4 m-2 p-4 bg-card border rounded shadow">
+            <div className="text-lg">You got a top score! You can submit it to the leaderboard.</div>
+            <form onSubmit={submit} className="flex flex-row gap-2">
+                <Input
+                    type="text"
+                    placeholder="Your name"
+                    required
+                    value={name}
+                    minLength={3}
+                    maxLength={20}
+                    onChange={(e) => setName(e.target.value)}
+                    disabled={submitted}
+                />
+                <Button type="submit" disabled={submitted}>{submitted ? "Submitted" : "Submit"} </Button>
+            </form>
+        </div>
+    )
+}
 
 function TimeDisplay({ time }: { time: number }) {
-    const seconds = time % 60;
-    const minutes = Math.floor(time / 60) % 60;
-    const hours = Math.floor(time / 3600);
-    const timeString = hours > 0 ? (
-        `${hours}:${minutes < 10 ? "0" : ""}${minutes}:${seconds < 10 ? "0" : ""}${seconds}`
-    ) : (
-        `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`
-    );
-    return <div className="text-lg">{timeString}</div>;
+    return <div className="text-lg">{secondsToTimeString(time)}</div>;
+}
+
+function loadState() {
+    // Get table from local storage if it exists, otherwise create new table
+    const data = localStorage.getItem("savedGameState");
+    if (data) {
+        const { time, table } = JSON.parse(data);
+        return {
+            time,
+            table: Table.fromPlain(table)
+        };
+    }
+    return { time: 0, table: new Table() };
+}
+
+function saveGameState(time: number, table: Table) {
+    const data = {
+        time,
+        table: table.toPlain()
+    }
+    localStorage.setItem("savedGameState", JSON.stringify(data));
+}
+
+function clearGameState() {
+    localStorage.removeItem("savedGameState");
 }
 
 export default function Game() {
-    const [table, setTable] = useState(() => new Table());
+    const router = useRouter();
+
+    const [table, setTable] = useState<Table | null>(null);
     const [showConfirmRestart, setShowConfirmRestart] = useState(false);
     const [gameOverInfo, setGameOverInfo] = useState<GameOverInfo | null>(null);
-
+    const [showSubmitScore, setShowSubmitScore] = useState(false);
+    
     const [time, setTime] = useState(0);
     const [timePaused, setTimePaused] = useState(false);
+    const [saveState, setSaveState] = useState(0);
 
     useEffect(() => {
+        const { time, table } = loadState();
+        setTime(time);
+        setTable(table);
+    }, [])
+
+    useEffect(() => {
+        if (table) {
+            saveGameState(time, table);
+        }
+    }, [saveState]);
+    useEffect(() => {
         if (!timePaused) {
-            const timer = setInterval(() => {
+            const timeTicker = setInterval(() => {
                 setTime(time => time + 1);
-            }, 1000);
-            return () => clearInterval(timer);
+            }, 1_000);
+            const saveStateTicker = setInterval(() => {
+                setSaveState(saveState => saveState + 1);
+            }, 5_000);
+            return () => {
+                clearInterval(timeTicker);
+                clearInterval(saveStateTicker);
+            };
         }
     }, [timePaused]);
 
@@ -45,13 +173,19 @@ export default function Game() {
 
     function gameOver(info: GameOverInfo) {
         setTimePaused(true);
-        setGameOverInfo(info);
+        setGameOverInfo(info);  
+        clearGameState();
+        eligibleForHighScore(time, info).then((eligible) => {
+            if (eligible) {
+                setShowSubmitScore(true);
+            }
+        });
     }
 
     return (
-        <div className="relative flex flex-col gap-6 sm:gap-12">
-            {table ? <TableView table={table} gameoverCallback={gameOver} /> : null}
-            <div className="flex flex-row justify-between items-center border-t border-t-foreground/10 p-8">
+        <div className="relative flex flex-col items-center gap-6 sm:gap-12">
+            {table ? <TableView table={table} gameoverCallback={gameOver} /> : <div className="text-center text-lg">Loading...</div>}
+            <div className="flex flex-row w-full max-w-xl justify-between items-center border-t border-t-foreground/10 p-8 gap-4">
                 <Button onClick={() => setShowConfirmRestart(true)}>Restart</Button>
                 <TimeDisplay time={time} />
             </div>
@@ -75,9 +209,13 @@ export default function Game() {
                         <div>Number of hints:</div>
                         <div className="text-lg">{gameOverInfo.nHints}</div>
                     </div>
-                    <div className="flex flex-row gap-6">
-                        <Button onClick={restartGame}>Play Again</Button>
+                    <div className="flex flex-row gap-2 items-center">
+                        <div>Number of mistakes:</div>
+                        <div className="text-lg">{gameOverInfo.nMistakes}</div>
                     </div>
+                    {showSubmitScore ? <SubmitScore time={time} info={gameOverInfo} /> : null}
+                    <Button onClick={() => router.push("/high-scores")}>View High Scores</Button>
+                    <Button onClick={restartGame}>Play Again</Button>
                 </div>
             ) : null}
         </div>
