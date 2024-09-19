@@ -17,7 +17,7 @@ export const signInAnonymouslyAction = async (token: string) => {
   return redirect("/");
 }
 
-export const createLobbyAction = async (name: string) => {
+export const createLobbyAction = async (name: string, hasPassword: boolean) => {
   const supabase = createClient();
   const user = (await supabase.auth.getUser()).data.user;
   if (!user) {
@@ -27,6 +27,7 @@ export const createLobbyAction = async (name: string) => {
   const { error: error1 } = await supabase.from("lobbies").upsert(
     {
       name,
+      hasPassword
     },
     {
       ignoreDuplicates: false,

@@ -2,17 +2,59 @@
 
 import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/utils/supabase/client";
-import { RealtimeChannel, RealtimePostgresInsertPayload, RealtimePostgresUpdatePayload } from "@supabase/supabase-js";
+import { RealtimeChannel, RealtimePostgresDeletePayload, RealtimePostgresInsertPayload, RealtimePostgresUpdatePayload } from "@supabase/supabase-js";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createLobbyAction } from "../actions";
 import { Input } from "@/components/ui/input";
+import { ChevronDown, ChevronUp, Lock } from "lucide-react";
 
 interface LobbyData {
     host_id: string;
-    created_at: Date;
     name: string;
-    guest_ids: string[];
+    hasPassword: boolean;
+}
+
+function LobbyJoinForm({
+    lobby,
+    joinFunc,
+    state,
+}: {
+    lobby: LobbyData,
+    joinFunc: (host_id: string, name: string, password: string) => void,
+    state: "pending" | "active" | "disabled",
+}) {
+    const [myName, setMyName] = useState("");
+    const [password, setPassword] = useState("");
+
+    function submit(event: React.FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        joinFunc(lobby.host_id, myName, password);
+    }
+
+    return (
+        <form onSubmit={submit} className="flex flex-col sm:flex-row gap-2 items-center">
+                <Input
+                        type="text"
+                        placeholder="Your name"
+                        required
+                        minLength={3}
+                        maxLength={16}
+                        onChange={e => setMyName(e.target.value)}
+                    />
+            
+            {lobby.hasPassword ? (
+                <Input
+                type="text"
+                placeholder="Password"
+                required
+                maxLength={32}
+                onChange={e => setPassword(e.target.value)}
+            />
+            ) : null}
+            <SubmitButton className="w-1/2 sm:w-auto my-2" disabled={state !== "active"}>{state === "pending" ? "Joining..." : "Join"}</SubmitButton>
+        </form>
+    )
 }
 
 function Lobby({
@@ -24,31 +66,26 @@ function Lobby({
     joinFunc: (host_id: string, name: string, password: string) => void,
     state: "active" | "pending" | "disabled"
 }) {
-    const [myName, setMyName] = useState("");
+    const [expanded, setExpanded] = useState(false);
+
     // TODO: deal with password
     return (
-        <form
-            className="flex flex-row justify-between gap-4 items-center p-2"
-            onSubmit={(e) => {
-                e.preventDefault();
-                joinFunc(lobby.host_id, myName, "");
-            }}
-        >
-            <div className="flex flex-row gap-2">
-                <div>Host:</div>
-                <div className="font-bold">{lobby.name}</div>
-            </div>
-            <Input
-                type="text"
-                className=""
-                required
-                minLength={3}
-                maxLength={16}
-                placeholder="Name to join as"
-                onChange={e => setMyName(e.target.value)}
-            />
-            <SubmitButton disabled={state !== "active"}>{state === "pending" ? "Joining..." : "Join"}</SubmitButton>
-        </form>
+        <div className={"flex flex-col gap-4 p-4 sm:p-6" + (expanded ? " bg-card" : "")}>
+            <button className="flex flex-row gap-2 justify-between items-center" onClick={() => setExpanded(expanded => !expanded)}>
+                <div>Host: <span className="mx-2 font-bold">{lobby.name}</span></div>
+                <div className="flex flex-row gap-2 items-center">
+                    {lobby.hasPassword ? <Lock /> : null}
+                    {expanded ? <ChevronUp /> : <ChevronDown />}
+                </div>
+            </button>
+            {expanded ? (
+                <LobbyJoinForm
+                    lobby={lobby}
+                    joinFunc={joinFunc}
+                    state={state}
+                />
+            ) : null}
+        </div>
     );
 }
 
@@ -61,7 +98,13 @@ function Lobbies({
     joinFunc: (host_id: string, name: string, password: string) => void,
     lobbyJoinRequested: string | null
 }) {
-    return lobbies ? (
+    if (lobbies === null) {
+        return <div className="text-center m-4">Loading...</div>;
+    } else if (lobbies.length === 0) {
+        return <div className="text-center m-4">No lobbies found</div>;
+    }
+
+    return (
         <div className="flex flex-col mx-4 divide-y">
             {lobbies.map((lobby) => {
                 let state: "active" | "pending" | "disabled";
@@ -75,8 +118,6 @@ function Lobbies({
                 return <Lobby key={lobby.name} lobby={lobby} joinFunc={joinFunc} state={state} />;
             })}
         </div>
-    ) : (
-        <div>Loading...</div>
     );
 }
 
@@ -105,6 +146,7 @@ export default function MultiplayerPage() {
         const channel = supabase
             .channel("lobbies")
             .on("postgres_changes", { event: "INSERT", schema: "public", table: "lobbies" }, handleLobbyInsert)
+            .on("postgres_changes", { event: "DELETE", schema: "public", table: "lobbies" }, handleLobbyDelete)
             .on("postgres_changes", { event: "UPDATE", schema: "public", table: "lobbies" }, handleLobbyUpdate)
             .subscribe();
 
@@ -129,7 +171,7 @@ export default function MultiplayerPage() {
         // TODO
 
         // Create lobby
-        const error = await createLobbyAction(lobbyName);
+        const error = await createLobbyAction(lobbyName, lobbyPassword !== "");
 
         if (error) {
             console.error(error);
@@ -195,21 +237,34 @@ export default function MultiplayerPage() {
                         // Not for me!
                         return;
                     }
+                    // Unsubscribe whether admitted or rejected
+                    channel.unsubscribe();
                     if (admitted) {
                         // Go to the lobby
                         router.push(`/multiplayer/lobby/${hostID}?uname=${name}`);
                         return;
                     }
-                    channel.unsubscribe();
                     setLobbyJoinRequested(null);
                 }
-            )
+            );
+
+            // Unsubscribe if timed out
+            const timeoutMilliseconds = 5_000;
+            setTimeout(() => {
+                channel.unsubscribe();
+                setLobbyJoinRequested(null);
+            }, timeoutMilliseconds);
         });
     }
 
     function handleLobbyInsert(payload: RealtimePostgresInsertPayload<LobbyData>) {
         console.log("received Insert payload", payload);
         setLobbies(lobbies => [...(lobbies ?? []), payload.new]);
+    }
+
+    function handleLobbyDelete(payload: RealtimePostgresDeletePayload<LobbyData>) {
+        console.log("received Delete payload", payload);
+        setLobbies(lobbies => lobbies?.filter(lobby => lobby.host_id !== payload.old.host_id) ?? []);
     }
 
     function handleLobbyUpdate(payload: RealtimePostgresUpdatePayload<LobbyData>) {
@@ -225,17 +280,14 @@ export default function MultiplayerPage() {
     }
 
     return (
-        <div className="flex flex-col gap-4 w-full sm:w-1/2 max-w-xl p-4">
-            <h2 className="text-lg sm:text-2xl">Lobbies</h2>
-            <Lobbies lobbies={lobbies} joinFunc={sendLobbyJoinRequest} lobbyJoinRequested={lobbyJoinRequested?.hostID ?? null} />
-
-            <form className="flex flex-col gap-4 p-5 bg-card border rounded" onSubmit={createLobby}>
+        <div className="flex flex-col gap-8 w-full sm:max-w-3xl p-4 mx-auto">
+            <form className="flex flex-col sm:max-w-xl self-center gap-4 p-5 bg-card border rounded" onSubmit={createLobby}>
                 <h2 className="text-lg sm:text-2xl">Create a new lobby</h2>
                 <label className="flex flex-row flex-wrap justify-between items-center gap-x-4">
                     Your name:
                     <Input
                         type="text"
-                        className="w-1/2"
+                        className=""
                         required
                         maxLength={16}
                         onChange={e => setLobbyName(e.target.value)}
@@ -244,8 +296,8 @@ export default function MultiplayerPage() {
                 <label className="flex flex-row flex-wrap justify-between items-center gap-x-4">
                     Lobby password:
                     <Input
-                        type="password"
-                        className="w-1/2"
+                        type="text"
+                        className=""
                         value={lobbyPassword}
                         maxLength={32}
                         onChange={e => setLobbyPassword(e.target.value)}
@@ -257,6 +309,13 @@ export default function MultiplayerPage() {
 
                 {createLobbyError ? <p className="text-destructive">{createLobbyError}</p> : null}
             </form>
+
+            <div>
+                <h2 className="text-lg sm:text-2xl">Lobbies</h2>
+                <div className="m-2 border-l border-border">
+                    <Lobbies lobbies={lobbies} joinFunc={sendLobbyJoinRequest} lobbyJoinRequested={lobbyJoinRequested?.hostID ?? null} />
+                </div>
+            </div>
         </div>
     )
 }

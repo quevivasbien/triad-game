@@ -2,18 +2,10 @@
 
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/utils/supabase/client';
-import { RealtimeChannel, RealtimePostgresUpdatePayload, User } from '@supabase/supabase-js';
+import { RealtimeChannel, User } from '@supabase/supabase-js';
 import { Star } from 'lucide-react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-
-interface LobbyMemberData {
-    host_id: string;
-    guests: {
-        uid: string;
-        name: string;
-    }[];
-}
 
 function UserEntry(
     {
@@ -48,8 +40,8 @@ function UserEntry(
 export default function Page() {
     const { host } = useParams<{ host: string }>();
     const searchParams = useSearchParams();
-    const name = searchParams.get("uname") ?? "Anonymous";
-    const password = searchParams.get("pwd");
+    const myName = searchParams.get("uname") ?? "Anonymous";
+    const lobbyPassword = searchParams.get("pwd");
     const router = useRouter();
 
     const [user, setUser] = useState<User | null>(null);
@@ -108,10 +100,11 @@ export default function Page() {
                     console.log("Received join message", payload);
                     // Update the lobby
                     // TODO: Deal with password
-                    // if (password !== myLobbyPassword) {
-                    //     console.log("Wrong password");
-                    //     return;
-                    // }
+                    if (password !== lobbyPassword) {
+                        console.log("Wrong password");
+                        informJoiner(uid, false);
+                        return;
+                    }
                     if (membersPresent.map((m) => m.uid).includes(uid)) {
                         console.error("User already in lobby");
                         informJoiner(uid, false);
@@ -166,7 +159,7 @@ export default function Page() {
             console.log("Subscribed to lobby channel");
 
             // Sync state with other channel members
-            channel.track({ uid: user.id, name });
+            channel.track({ uid: user.id, name: myName });
         });
 
         setChannel(channel);
@@ -178,6 +171,10 @@ export default function Page() {
     }, [user]);
 
     function kickUser(uid: string) {
+        if (!user || user.id !== host) {
+            console.error("User is not host when kicking user");
+            return;
+        }
         if (!channel) {
             console.error("Channel is null when kicking user");
             return;
@@ -209,6 +206,22 @@ export default function Page() {
         setKickedUsers(kickedUsers => [...kickedUsers, uid]);
     }
 
+    function exitLobby() {
+        // Clean up
+        if (user && user.id === host) {
+            // Delete lobby
+            supabase.from("lobbies")
+                .delete()
+                .eq("host_id", host)
+                .then(({ error }) => {
+                    if (error) {
+                        console.error("Error deleting lobby", error);
+                    }
+                });
+        }
+        router.push("/multiplayer");
+    }
+
     if (!user) {
         return <div>Loading...</div>
     }
@@ -216,7 +229,7 @@ export default function Page() {
     return (
         <div className="flex flex-col gap-8">
             <h1>{user.id === host ? "Hosted lobby" : "Guest lobby"}</h1>
-            {password ? <p>Password: {password}</p> : null}
+            {lobbyPassword ? <p>Password: {lobbyPassword}</p> : null}
             <div>
                 <h2>Members</h2>
                 <div className="flex flex-col m-2 divide-y">
@@ -233,7 +246,7 @@ export default function Page() {
                 </div>
             </div>
             <div className="flex flex-row justify-end">
-                <Button className="" onClick={() => { router.push("/multiplayer") }}>Exit lobby</Button>
+                <Button className="" onClick={exitLobby}>Exit lobby</Button>
             </div>
         </div>
     );
