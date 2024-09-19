@@ -9,9 +9,10 @@ import { secondsToTimeString } from "@/utils/utils";
 import { createClient } from "@/utils/supabase/client";
 import { Input } from "./ui/input";
 import { useRouter } from "next/navigation";
+import { MAX_HIGH_SCORE_ENTRIES } from "@/lib/constants";
 
 async function eligibleForHighScore(time: number, info: GameOverInfo) {
-    const eligibilityThreshold = 10;  // Must be within top this many to qualify
+    const eligibilityThreshold = MAX_HIGH_SCORE_ENTRIES;  // Must be within top this many to qualify
     const supabase = createClient();
     // Get top ten completion times
     let result = await supabase

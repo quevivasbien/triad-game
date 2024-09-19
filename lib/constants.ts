@@ -1,0 +1,1 @@
+export const MAX_HIGH_SCORE_ENTRIES = 20;

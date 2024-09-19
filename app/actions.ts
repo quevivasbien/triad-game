@@ -24,18 +24,15 @@ export const createLobbyAction = async (name: string, hasPassword: boolean) => {
     throw new Error("No user when creating lobby.");
   }
   // Create entry in publicly-viewable lobbies list
-  const { error: error1 } = await supabase.from("lobbies").upsert(
+  const { error } = await supabase.from("lobbies").upsert(
     {
       name,
-      hasPassword
+      has_password: hasPassword,
     },
     {
       ignoreDuplicates: false,
       onConflict: "host_id",
     }
   );
-  if (error1) {
-    return error1;
-  }
-  return null;
+  return error;
 }

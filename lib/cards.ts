@@ -96,16 +96,20 @@ export class Deck {
     }
 }
 
+type Opponents = Record<string, { name: string, collected: Card[] }>;
+
 export class Table {
     deck: Deck;
     cards: Card[];
     collected: Card[] = [];
+    opponents: Opponents = {};
     
-    constructor(components?: { deck: Deck, cards: Card[], collected: Card[] }) {
+    constructor(components?: { deck: Deck, cards: Card[], collected: Card[], opponents: Opponents }) {
         if (components) {
             this.deck = components.deck;
             this.cards = components.cards;
             this.collected = components.collected;
+            this.opponents = components.opponents;
             return;
         }
         this.deck = new Deck();
@@ -119,19 +123,31 @@ export class Table {
         // this.deck.cards.splice(0, 66);
     }
 
+    setOpponents(opponents: { id: string, name: string}[]) {
+        if (this.collected.length !== 0) {
+            console.error("Warning: attempting to set opponents after cards have been collected");
+        }
+        this.opponents = {};
+        opponents.forEach(({ id, name }) => {
+            this.opponents[id] = { name, collected: [] };
+        });
+    }
+
     toPlain() {
         return {
             deck: this.deck.cards,
             cards: this.cards,
-            collected: this.collected
+            collected: this.collected,
+            opponents: this.opponents,
         };
     }
 
-    static fromPlain(plain: { deck: Card[], cards: Card[], collected: Card[] }) {
+    static fromPlain(plain: { deck: Card[], cards: Card[], collected: Card[], opponents: Opponents }) {
         const deck = new Deck(plain.deck);
         const cards = plain.cards;
         const collected = plain.collected;
-        return new Table({ deck, cards, collected });
+        const opponents = plain.opponents;
+        return new Table({ deck, cards, collected, opponents });
     }
 
     shuffleVisible() {

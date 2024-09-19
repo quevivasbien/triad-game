@@ -1,5 +1,6 @@
 "use client";
 
+import { MAX_HIGH_SCORE_ENTRIES } from "@/lib/constants";
 import { createClient } from "@/utils/supabase/client";
 import { secondsToTimeString } from "@/utils/utils";
 import { useEffect, useState } from "react";
@@ -21,7 +22,7 @@ async function fetchHighScores(filterNoHints: boolean) {
             .order("nHints", { ascending: true })
             .order("nMistakes", { ascending: true })
             .eq("nHints", 0)
-            .limit(10)
+            .limit(MAX_HIGH_SCORE_ENTRIES)
     ) : (
         await supabase
             .from("highScores")
@@ -29,7 +30,7 @@ async function fetchHighScores(filterNoHints: boolean) {
             .order("timeSeconds", { ascending: true })
             .order("nHints", { ascending: true })
             .order("nMistakes", { ascending: true })
-            .limit(10)
+            .limit(MAX_HIGH_SCORE_ENTRIES)
     );
     if (error) {
         return { scores: null, error };
@@ -84,7 +85,7 @@ export default function HighScoresPage() {
     }, [filterNoHints]);
 
     return (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 max-w-5xl mx-auto">
             <h1 className="text-xl sm:text-3xl">High Scores</h1>
             <label className="flex flex-row gap-2">
                 <input type="checkbox" checked={filterNoHints} onChange={() => setFilterNoHints(!filterNoHints)} />

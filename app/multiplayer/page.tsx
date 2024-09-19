@@ -3,7 +3,7 @@
 import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/utils/supabase/client";
 import { RealtimeChannel, RealtimePostgresDeletePayload, RealtimePostgresInsertPayload, RealtimePostgresUpdatePayload } from "@supabase/supabase-js";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createLobbyAction } from "../actions";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,8 @@ import { ChevronDown, ChevronUp, Lock } from "lucide-react";
 interface LobbyData {
     host_id: string;
     name: string;
-    hasPassword: boolean;
+    has_password: boolean;
+    created_at: string;
 }
 
 function LobbyJoinForm({
@@ -43,7 +44,7 @@ function LobbyJoinForm({
                         onChange={e => setMyName(e.target.value)}
                     />
             
-            {lobby.hasPassword ? (
+            {lobby.has_password ? (
                 <Input
                 type="text"
                 placeholder="Password"
@@ -74,7 +75,7 @@ function Lobby({
             <button className="flex flex-row gap-2 justify-between items-center" onClick={() => setExpanded(expanded => !expanded)}>
                 <div>Host: <span className="mx-2 font-bold">{lobby.name}</span></div>
                 <div className="flex flex-row gap-2 items-center">
-                    {lobby.hasPassword ? <Lock /> : null}
+                    {lobby.has_password ? <Lock /> : null}
                     {expanded ? <ChevronUp /> : <ChevronDown />}
                 </div>
             </button>
@@ -127,17 +128,22 @@ export default function MultiplayerPage() {
     const [lobbyPassword, setLobbyPassword] = useState("");
     const [lobbies, setLobbies] = useState<LobbyData[] | null>(null);
 
-    const supabase = createClient();
+    const supabase = useMemo(() => createClient(), []);
 
     // Load the initial list of lobbies
+    const twoHoursBefore = new Date();
+    twoHoursBefore.setHours(twoHoursBefore.getHours() - 2);
     useEffect(() => {
-        supabase.from("lobbies").select("*").then(({ data, error }) => {
-            if (error) {
-                console.error(error);
-                return;
-            }
-            setLobbies(data);
-        });
+        supabase.from("lobbies")
+            .select("*")
+            .gte("created_at", twoHoursBefore.toISOString())
+            .then(({ data, error }) => {
+                if (error) {
+                    console.error(error);
+                    return;
+                }
+                setLobbies(data);
+            });
     }, []);
 
     // Listen to changes to the "lobbies" table
@@ -153,7 +159,7 @@ export default function MultiplayerPage() {
         return () => {
             channel.unsubscribe();
         };
-    }, [])
+    }, []);
 
     const [createLobbyError, setCreateLobbyError] = useState<string | null>(null);
 
@@ -210,7 +216,8 @@ export default function MultiplayerPage() {
 
         // TODO: Form validation
 
-        const channel = supabase.channel("lobby-" + hostID);
+        // TODO: This needs to be a different channel than the actual lobby channel
+        const channel = supabase.channel("lobby:" + hostID);
         channel.subscribe((status) => {
             if (status !== "SUBSCRIBED") {
                 console.error("Failed to subscribe to lobby", hostID, status);
@@ -280,7 +287,7 @@ export default function MultiplayerPage() {
     }
 
     return (
-        <div className="flex flex-col gap-8 w-full sm:max-w-3xl p-4 mx-auto">
+        <div className="flex flex-col gap-8 sm:gap-16 w-full sm:max-w-3xl p-4 mx-auto">
             <form className="flex flex-col sm:max-w-xl self-center gap-4 p-5 bg-card border rounded" onSubmit={createLobby}>
                 <h2 className="text-lg sm:text-2xl">Create a new lobby</h2>
                 <label className="flex flex-row flex-wrap justify-between items-center gap-x-4">
@@ -311,8 +318,8 @@ export default function MultiplayerPage() {
             </form>
 
             <div>
-                <h2 className="text-lg sm:text-2xl">Lobbies</h2>
-                <div className="m-2 border-l border-border">
+                <h2 className="text-lg sm:text-2xl border-b border-border">Lobbies</h2>
+                <div className="m-2">
                     <Lobbies lobbies={lobbies} joinFunc={sendLobbyJoinRequest} lobbyJoinRequested={lobbyJoinRequested?.hostID ?? null} />
                 </div>
             </div>

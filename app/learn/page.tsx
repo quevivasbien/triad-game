@@ -2,7 +2,7 @@ import CardView from "@/components/card-view";
 
 export default function LearnPage() {
     return (
-        <div className="flex-1 flex flex-col gap-6">
+        <div className="flex-1 flex flex-col gap-6 max-w-4xl mx-auto">
             <h1 className="text-xl sm:text-3xl">Learn to Play</h1>
             <p className="text-sm sm:text-base">
                 The objective of the game is to make <em>triads</em> of cards.

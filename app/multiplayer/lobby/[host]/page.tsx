@@ -1,11 +1,12 @@
 "use client";
 
 import { Button } from '@/components/ui/button';
+import { extractValuesFromPresenceState } from '@/lib/utils';
 import { createClient } from '@/utils/supabase/client';
 import { RealtimeChannel, User } from '@supabase/supabase-js';
 import { Star } from 'lucide-react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 function UserEntry(
     {
@@ -57,7 +58,7 @@ export default function Page() {
 
     const [errorText, setErrorText] = useState<string | null>(null);
 
-    const supabase = createClient();
+    const supabase = useMemo(() => createClient(), []);
 
     const [membersPresent, setMembersPresent] = useState<{ uid: string, name: string }[]>(() => []);
     const [kickedUsers, setKickedUsers] = useState<string[]>(() => []);  // TODO: This doesn't preserve state when rerendering
@@ -77,7 +78,7 @@ export default function Page() {
             return;
         }
 
-        const channel = supabase.channel("lobby-" + host);
+        const channel = supabase.channel("lobby:" + host);
 
         function informJoiner(recipientUID: string, admitted: boolean) {
             channel.send({
@@ -135,7 +136,18 @@ export default function Page() {
                         router.push("/multiplayer");
                     }
                 }
-            )
+            );
+
+            // Watch for start game events
+            channel.on(
+                "broadcast",
+                { event: "start" },
+                async (payload) => {
+                    console.log("Received start message", payload);
+                    // Go to the game page
+                    router.push("/multiplayer/game/" + host);
+                }
+            );
         }
 
         channel.on(
@@ -144,10 +156,8 @@ export default function Page() {
             () => {
                 const presenceState = channel.presenceState();
                 console.log("Received presence sync", presenceState);
-                let membersPresent = Object.values(presenceState)
-                    .flatMap((entry) => Object.values(entry).map((x) => 'uid' in x && 'name' in x ? { uid: x.uid, name: x.name } : null))
-                    .filter(x => x !== null) as { uid: string, name: string }[];
-                setMembersPresent(membersPresent);
+                let membersPresent = extractValuesFromPresenceState(presenceState, ["uid", "name"]);
+                setMembersPresent(membersPresent as { uid: string, name: string }[]);
             }
         );
 
@@ -206,6 +216,46 @@ export default function Page() {
         setKickedUsers(kickedUsers => [...kickedUsers, uid]);
     }
 
+    async function startGame() {
+        if (!channel) {
+            console.error("Channel is null when starting game");
+            return;
+        }
+        // Delete lobby
+        supabase.from("lobbies")
+            .delete()
+            .eq("host_id", host)
+            .then(({ error }) => {
+                if (error) {
+                    console.error("Error deleting lobby", error);
+                }
+            });
+        // Create game
+        await supabase.from("games")
+            .upsert(
+                {
+                    player_ids: membersPresent.map(m => m.uid),
+                    player_names: membersPresent.map(m => m.name),
+                },
+                { ignoreDuplicates: false, onConflict: "host_id" }
+            )
+            .then(({ error }) => {
+                if (error) {
+                    console.error("Error creating game", error);
+                }
+            });
+
+        // Inform users
+        channel.send({
+            type: "broadcast",
+            event: "start",
+        }).then((response) => {
+            console.log("Sent start message, got response", response);
+        });
+
+        router.push("/multiplayer/game/" + host);
+    }
+
     function exitLobby() {
         // Clean up
         if (user && user.id === host) {
@@ -227,11 +277,10 @@ export default function Page() {
     }
 
     return (
-        <div className="flex flex-col gap-8">
-            <h1>{user.id === host ? "Hosted lobby" : "Guest lobby"}</h1>
+        <div className="flex flex-col sm:max-w-3xl mx-auto gap-8">
             {lobbyPassword ? <p>Password: {lobbyPassword}</p> : null}
             <div>
-                <h2>Members</h2>
+                <h2 className="text-xl">Members</h2>
                 <div className="flex flex-col m-2 divide-y">
                     {membersPresent.map(({ uid, name }) => (
                         <UserEntry
@@ -245,7 +294,8 @@ export default function Page() {
                     ))}
                 </div>
             </div>
-            <div className="flex flex-row justify-end">
+            <div className="flex flex-row justify-between">
+                {user.id === host ? <Button className="" onClick={startGame}>Start game</Button> : <div />}
                 <Button className="" onClick={exitLobby}>Exit lobby</Button>
             </div>
         </div>
