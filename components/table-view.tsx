@@ -7,10 +7,8 @@ import CardStack from "./card-stack";
 import OnlyClient from "./only-client";
 import { Button } from "./ui/button";
 import { GameOverInfo } from "@/lib/types";
-
-function getRotations(cards: any[]) {
-    return cards.map(_ => Math.round(Math.random() * 4 - 2));
-}
+import { HINT_HIGHLIGHT_TIMEOUT_MS, TRIAD_HIGHLIGHT_TIMEOUT_MS } from "@/lib/constants";
+import { getRotations } from "@/lib/utils";
 
 export default function TableView({
     table,
@@ -20,9 +18,9 @@ export default function TableView({
     gameoverCallback: (info: GameOverInfo) => void,
 }) {
     const [selected, setSelected] = useState<number[]>([]);
-    const [redFlash, setRedFlash] = useState<number[]>([]);
-    const [greenFlash, setGreenFlash] = useState<number[]>([]);
-    const [rotations, setRotations] = useState<number[]>(getRotations(table.cards));
+    const [redHighlights, setRedHighlights] = useState<number[]>([]);
+    const [greenHighlights, setGreenHighlights] = useState<number[]>([]);
+    const [rotations, setRotations] = useState<number[]>(getRotations(table.cards.length));
     const [nHints, setNHints] = useState(0);
     const [nMistakes, setNMistakes] = useState(0);
 
@@ -34,16 +32,16 @@ export default function TableView({
             if (newSelected.length === 3) {
                 const { success: isTriad, gameIsOver } = table.attemptRemoveTriad(newSelected as [number, number, number]);
                 if (isTriad) {
-                    setGreenFlash(newSelected);
+                    setGreenHighlights(newSelected);
                     setTimeout(() => {
-                        setGreenFlash([]);
-                    }, 500);
+                        setGreenHighlights([]);
+                    }, TRIAD_HIGHLIGHT_TIMEOUT_MS);
                 }
                 else {
-                    setRedFlash(newSelected);
+                    setRedHighlights(newSelected);
                     setTimeout(() => {
-                        setRedFlash([]);
-                    }, 500);
+                        setRedHighlights([]);
+                    }, TRIAD_HIGHLIGHT_TIMEOUT_MS);
                     setNMistakes(nMistakes + 1);
                 }
                 setSelected([]);
@@ -62,32 +60,33 @@ export default function TableView({
         const hint = table.getHint();
         console.log("Got hint", hint);
         if (hint !== null) {
-            setGreenFlash([...greenFlash, hint]);
+            setGreenHighlights([...greenHighlights, hint]);
             setTimeout(() => {
-                setGreenFlash([]);
-            }, 2000);
+                setGreenHighlights([]);
+            }, HINT_HIGHLIGHT_TIMEOUT_MS);
         }
     }
 
     function shuffle() {
         table.shuffleVisible();
-        setRotations(getRotations(table.cards));
+        setRotations(getRotations(table.cards.length));
     }
 
     const cards = table.cards.map((card, i) => {
-        const redFlashOverlay = (redFlash.includes(i)) ? <div className="absolute inset-0 bg-red-200/60 rounded" /> : null;
-        const greenFlashOverlay = (greenFlash.includes(i)) ? <div className="absolute inset-0 bg-green-200/60 rounded" /> : null;
+        const redHighlight = (redHighlights.includes(i)) ? <div className="absolute inset-0 bg-red-200/60 rounded" /> : null;
+        const greenHighlight = (greenHighlights.includes(i)) ? <div className="absolute inset-0 bg-green-200/60 rounded" /> : null;
         const isSelected = selected.includes(i);
         return (
             <button
+                className="relative"
                 onClick={() => selectCard(i)} style={{ transform: `rotate(${rotations[i]}deg)` }}
                 key={card.color + card.number + card.shape + card.pattern + isSelected}
             >
                 <CardView
                     card={card} selected={isSelected}
                 />
-                {redFlashOverlay}
-                {greenFlashOverlay}
+                {redHighlight}
+                {greenHighlight}
             </button>
         );
     });
@@ -104,7 +103,7 @@ export default function TableView({
                         <Button variant="secondary" className="text-xs sm:text-base" onClick={getHint}>Hint</Button>
                         <Button variant="secondary" className="text-xs sm:text-base" onClick={shuffle}>Shuffle</Button>
                     </div>
-                    <div className="flex flex-row lg:flex-col justify-between gap-4">
+                    <div className="flex flex-row lg:flex-col justify-between gap-4 sm:gap-12">
                         <CardStack cards={table.deck.cards} />
                         <CardStack cards={table.collected} faceUp={true} />
                     </div>

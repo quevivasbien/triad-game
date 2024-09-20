@@ -6,6 +6,10 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function getRotations(n: number) {
+  return Array.from({ length: n }).map(_ => Math.round(Math.random() * 4 - 2));
+}
+
 export function extractValuesFromPresenceState(presenceState: RealtimePresenceState, keys: string[]) {
   const values = Object.values(presenceState).flatMap((entry) => Object.values(entry)) as any[];
   const out = [];

@@ -2,11 +2,12 @@
 
 import MultiplayerGame from "@/components/multiplayer-game";
 import { Table } from "@/lib/cards";
+import { TRIAD_HIGHLIGHT_TIMEOUT_MS } from "@/lib/constants";
 import { MultiplayerAction, Opponents } from "@/lib/types";
 import { extractValuesFromPresenceState } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
 import { RealtimeChannel, User } from "@supabase/supabase-js";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 interface Player {
@@ -15,7 +16,7 @@ interface Player {
 }
 
 export default function Page() {
-    console.log("rerendering")
+    const router = useRouter();
     const host = useParams<{ host: string }>().host;
     const supabase = useMemo(() => createClient(), []);
 
@@ -43,7 +44,6 @@ export default function Page() {
     const [playersPresent, setPlayersPresent] = useState<string[]>(() => []);
     const [opponents, setOpponents] = useState<Opponents | null>(null);
     const [errorText, setErrorText] = useState<string | null>(null);
-
 
     useEffect(() => {
         console.log("opponents", opponents)
@@ -78,6 +78,29 @@ export default function Page() {
                 ));
             });
     }, [user]);
+
+    const [exitGameCallback, setExitGameCallback] = useState<() => void>(() => (
+        () => {
+            router.push("/multiplayer");
+        }
+    ));
+    // When host exits game, it should be removed from the database
+    useEffect(() => {
+        if (!user || user.id !== host) {
+            return;
+        }
+        setExitGameCallback(() => (() => {
+            supabase.from("games")
+                .delete()
+                .eq("host_id", host)
+                .then(({ error }) => {
+                    if (error) {
+                        console.error("Error deleting game", error);
+                    }
+                });
+            router.push("/multiplayer");
+        }));
+    }, [user])
 
     const [channel, setChannel] = useState<RealtimeChannel | null>(null);
     const [table, setTable] = useState<Table | null>(null);
@@ -154,6 +177,8 @@ export default function Page() {
     // Action callback is called when you do something on the table
     // It will send that action to the other players
     const [actionCallback, setActionCallback] = useState<((action: MultiplayerAction) => void) | null>(null);
+    const [opponentCollectedHighlights, setOpponentCollectedHighlights] = useState<number[]>(() => []);
+    const [gameIsOver, setGameIsOver] = useState<boolean>(false);
     useEffect(() => {
         if (user === null || channel === null || table === null) {
             return;
@@ -161,6 +186,12 @@ export default function Page() {
         console.log("Called action callback effect");
 
         setActionCallback(() => ((action: MultiplayerAction) => {
+            // Instead of sending gameover action, just set gameIsOver = true.
+            // Other players will figure out for themselves that the game is over
+            if (action.type === "gameover") {
+                setGameIsOver(true);
+                return;
+            }
             console.log("Sending action", action);
             channel.send({
                 type: "broadcast",
@@ -193,15 +224,21 @@ export default function Page() {
                     if (!success) {
                         throw new Error("User reported invalid triad");
                     }
-                    // TODO: Highlight triad
+                    // Highlight triad
+                    setOpponentCollectedHighlights(action.triad);
+                    setTimeout(() => {
+                        setOpponentCollectedHighlights([]);
+                    }, TRIAD_HIGHLIGHT_TIMEOUT_MS);
                     // Add to opponent's collected cards
                     if (opponents === null) {
                         throw new Error("opponents not initialized");
                     }
                     opponents[sender].collected = [...opponents[sender].collected, ...cards];
                     if (gameIsOver) {
-                        // TODO: Game over
+                        setGameIsOver(true);
                     }
+                } else {
+                    console.log("Received action", action);
                 }
             }
         );
@@ -219,7 +256,14 @@ export default function Page() {
 
     return (
         <div>
-            <MultiplayerGame table={table} actionCallback={actionCallback} opponents={opponents} />
+            <MultiplayerGame
+                table={table}
+                actionCallback={actionCallback}
+                opponents={opponents}
+                opponentCollectedHighlights={opponentCollectedHighlights}
+                showGameOverInfo={gameIsOver}
+                exitGameCallback={exitGameCallback}
+            />
         </div>
     );
 }
