@@ -1,21 +1,29 @@
 "use client";
 
-import { Table } from "@/lib/cards";
+import { Card, Table } from "@/lib/cards";
 import { useEffect, useState } from "react";
 import TableView from "./table-view";
-import { GameOverInfo } from "@/lib/types";
+import { GameOverInfo, MultiplayerAction, Opponents } from "@/lib/types";
 import { secondsToTimeString } from "@/utils/utils";
 import { useRouter } from "next/navigation";
+import MultiplayerTableView from "./multiplayer-table-view";
 
 
 function TimeDisplay({ time }: { time: number }) {
     return <div className="text-lg">{secondsToTimeString(time)}</div>;
 }
- 
-export default function MultiplayerGame({ initialTable }: { initialTable: Table }) {
+
+export default function MultiplayerGame({
+    table,
+    actionCallback,
+    opponents
+}: {
+    table: Table,
+    actionCallback: (action: MultiplayerAction) => void,
+    opponents: Opponents
+}) {
     const router = useRouter();
 
-    const [table, setTable] = useState<Table | null>(() => initialTable);
     const [gameOverInfo, setGameOverInfo] = useState<GameOverInfo | null>(null);
     
     const [time, setTime] = useState(0);
@@ -32,14 +40,9 @@ export default function MultiplayerGame({ initialTable }: { initialTable: Table 
         }
     }, [timePaused]);
 
-    function gameOver(info: GameOverInfo) {
-        setTimePaused(true);
-        setGameOverInfo(info);  
-    }
-
     return (
         <div className="relative flex flex-col items-center gap-6 sm:gap-12">
-            {table ? <TableView table={table} gameoverCallback={gameOver} /> : <div className="text-center text-lg">Loading...</div>}
+            <MultiplayerTableView table={table} actionCallback={actionCallback} opponents={opponents} />
             <div className="flex flex-row w-full max-w-xl justify-center items-center border-t border-t-foreground/10 p-8 gap-4">
                 <TimeDisplay time={time} />
             </div>

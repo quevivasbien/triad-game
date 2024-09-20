@@ -12,7 +12,13 @@ function getRotations(cards: any[]) {
     return cards.map(_ => Math.round(Math.random() * 4 - 2));
 }
 
-export default function TableView({ table, gameoverCallback }: { table: Table, gameoverCallback: (info: GameOverInfo) => void }) {
+export default function TableView({
+    table,
+    gameoverCallback,
+}: {
+    table: Table,
+    gameoverCallback: (info: GameOverInfo) => void,
+}) {
     const [selected, setSelected] = useState<number[]>([]);
     const [redFlash, setRedFlash] = useState<number[]>([]);
     const [greenFlash, setGreenFlash] = useState<number[]>([]);
@@ -71,30 +77,20 @@ export default function TableView({ table, gameoverCallback }: { table: Table, g
     const cards = table.cards.map((card, i) => {
         const redFlashOverlay = (redFlash.includes(i)) ? <div className="absolute inset-0 bg-red-200/60 rounded" /> : null;
         const greenFlashOverlay = (greenFlash.includes(i)) ? <div className="absolute inset-0 bg-green-200/60 rounded" /> : null;
+        const isSelected = selected.includes(i);
         return (
             <button
                 onClick={() => selectCard(i)} style={{ transform: `rotate(${rotations[i]}deg)` }}
-                key={card.color + card.number + card.shape + card.pattern + selected}
+                key={card.color + card.number + card.shape + card.pattern + isSelected}
             >
                 <CardView
-                    card={card} selected={selected.includes(i)}
+                    card={card} selected={isSelected}
                 />
                 {redFlashOverlay}
                 {greenFlashOverlay}
             </button>
         );
     });
-
-    const opponents = Object.keys(table.opponents).length > 0 ? (
-        <div className="flex flex-row lg:flex-col flex-overflow justify-center gap-4 lg:my-auto lg:max-h-96 lg:overflow-y-auto shadow-inner p-4 sm:p-12">
-            {Object.entries(table.opponents).map(([id, { name, collected }]) => (
-                <div className="flex flex-col items-center">
-                <div className="font-bold">{name}</div>
-                <CardStack key={id} cards={collected} faceUp={true} />
-                </div>
-            ))}
-        </div>
-    ) : null;
 
     // Only allow rendering on the client, to avoid issues with failed hydration since cards are dynamic
     return (
@@ -113,7 +109,6 @@ export default function TableView({ table, gameoverCallback }: { table: Table, g
                         <CardStack cards={table.collected} faceUp={true} />
                     </div>
                 </div>
-                {opponents}
             </div>
         </OnlyClient>
     )

@@ -156,8 +156,8 @@ export default function Page() {
             () => {
                 const presenceState = channel.presenceState();
                 console.log("Received presence sync", presenceState);
-                let membersPresent = extractValuesFromPresenceState(presenceState, ["uid", "name"]);
-                setMembersPresent(membersPresent as { uid: string, name: string }[]);
+                let membersPresent = extractValuesFromPresenceState(presenceState, ["uid", "name"]) as { uid: string, name: string }[];
+                setMembersPresent(membersPresent);
             }
         );
 

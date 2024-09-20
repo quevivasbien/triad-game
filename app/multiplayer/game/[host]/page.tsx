@@ -2,6 +2,7 @@
 
 import MultiplayerGame from "@/components/multiplayer-game";
 import { Table } from "@/lib/cards";
+import { MultiplayerAction, Opponents } from "@/lib/types";
 import { extractValuesFromPresenceState } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
 import { RealtimeChannel, User } from "@supabase/supabase-js";
@@ -40,10 +41,19 @@ export default function Page() {
 
     const [players, setPlayers] = useState<Player[] | null>(null);
     const [playersPresent, setPlayersPresent] = useState<string[]>(() => []);
+    const [opponents, setOpponents] = useState<Opponents | null>(null);
     const [errorText, setErrorText] = useState<string | null>(null);
+
+
+    useEffect(() => {
+        console.log("opponents", opponents)
+    }, [opponents]);
 
     // Get list of players
     useEffect(() => {
+        if (!user) {
+            return;
+        }
         supabase.from("games")
             .select("player_ids, player_names")
             .eq("host_id", host)
@@ -59,22 +69,22 @@ export default function Page() {
                 }
                 const players = data.player_ids.map((id: string, index: number) => {
                     return { id, name: data.player_names[index] };
-                })
+                }) as Player[];
                 setPlayers(players);
+                setOpponents(Object.fromEntries(
+                    players
+                        .filter(({ id }) => id !== user.id)
+                        .map(({ id, name }: Player) => [id, { name, collected: [] }])
+                ));
             });
-    }, []);
+    }, [user]);
 
     const [channel, setChannel] = useState<RealtimeChannel | null>(null);
-    const [initialTable, _setInitialTable] = useState<Table | null>(null);
-
-    function setInitialTable(table: Table, players: Player[], myUID: string) {
-        table.setOpponents(players.filter(p => p.id !== myUID).map(({ id, name }) => ({ id, name })));
-        _setInitialTable(table);
-    }
+    const [table, setTable] = useState<Table | null>(null);
 
     // Initialize game communication channel
     useEffect(() => {
-        if (user === null || players === null) {
+        if (user === null || players === null || opponents === null) {
             return;
         }
 
@@ -87,7 +97,7 @@ export default function Page() {
             () => {
                 const state = channel.presenceState();
                 console.log("presence state", state);
-                const playersPresent = extractValuesFromPresenceState(state, ["uid"]).map(({ uid }) => uid) ;
+                const playersPresent = extractValuesFromPresenceState(state, ["uid"]).map(({ uid }) => uid);
                 setPlayersPresent(playersPresent as string[]);
             }
         );
@@ -98,12 +108,10 @@ export default function Page() {
                 "broadcast",
                 { event: "table" },
                 (payload) => {
-                    console.log("Got payload", payload);
                     const initialTable = Table.fromPlain(payload.payload);
-                    console.log("Received table", initialTable);
-                    setInitialTable(initialTable, players, user.id);
+                    setTable(initialTable);
                 }
-            )
+            );
         }
 
         channel.subscribe((status) => {
@@ -120,7 +128,7 @@ export default function Page() {
         return () => {
             channel.unsubscribe();
         };
-    }, [user, players])
+    }, [user, players, opponents]);
 
     useEffect(() => {
         // Wait for user, players, and channel to be initialized
@@ -140,10 +148,64 @@ export default function Page() {
             event: "table",
             payload: initialTable.toPlain(),
         });
-        // Set opponents and set for self
-        initialTable.setOpponents(players.filter(p => p.id !== user.id).map(({ id, name }) => ({ id, name })));
-        setInitialTable(initialTable, players, user.id);
+        setTable(initialTable);
     }, [user, players, playersPresent, channel]);
+
+    // Action callback is called when you do something on the table
+    // It will send that action to the other players
+    const [actionCallback, setActionCallback] = useState<((action: MultiplayerAction) => void) | null>(null);
+    useEffect(() => {
+        if (user === null || channel === null || table === null) {
+            return;
+        }
+        console.log("Called action callback effect");
+
+        setActionCallback(() => ((action: MultiplayerAction) => {
+            console.log("Sending action", action);
+            channel.send({
+                type: "broadcast",
+                event: "action",
+                payload: {
+                    sender: user.id,
+                    action
+                }
+            });
+        }));
+
+        // Also respond to any actions received
+        channel.on(
+            "broadcast",
+            { event: "action" },
+            (payload) => {
+                console.log("Received action payload", payload);
+                const { sender, action } = payload.payload as { sender: string, action: MultiplayerAction };
+                if (sender === user.id) {
+                    // No need to do anything if we're the sender
+                    return;
+                }
+                if (action.type === "triad") {
+                    const cards = [
+                        table.cards[action.triad[0]],
+                        table.cards[action.triad[1]],
+                        table.cards[action.triad[2]],
+                    ];
+                    const { success, gameIsOver } = table.attemptRemoveTriad(action.triad, false);
+                    if (!success) {
+                        throw new Error("User reported invalid triad");
+                    }
+                    // TODO: Highlight triad
+                    // Add to opponent's collected cards
+                    if (opponents === null) {
+                        throw new Error("opponents not initialized");
+                    }
+                    opponents[sender].collected = [...opponents[sender].collected, ...cards];
+                    if (gameIsOver) {
+                        // TODO: Game over
+                    }
+                }
+            }
+        );
+    }, [user, channel, table]);
 
     if (errorText) {
         return (
@@ -151,14 +213,13 @@ export default function Page() {
         );
     }
 
-    if (players === null || initialTable === null) {
-        return <p className="text-center">Loading...</p>;
+    if (opponents === null || table === null || actionCallback === null) {
+        return <p className="text-lg text-center">Loading...</p>;
     }
 
     return (
         <div>
-            {players ? <p>Players: {JSON.stringify(players)}</p> : null}
-            <MultiplayerGame initialTable={initialTable} />
+            <MultiplayerGame table={table} actionCallback={actionCallback} opponents={opponents} />
         </div>
     );
 }

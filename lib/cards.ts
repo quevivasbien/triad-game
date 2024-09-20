@@ -96,20 +96,16 @@ export class Deck {
     }
 }
 
-type Opponents = Record<string, { name: string, collected: Card[] }>;
-
 export class Table {
     deck: Deck;
     cards: Card[];
     collected: Card[] = [];
-    opponents: Opponents = {};
     
-    constructor(components?: { deck: Deck, cards: Card[], collected: Card[], opponents: Opponents }) {
+    constructor(components?: { deck: Deck, cards: Card[], collected: Card[] }) {
         if (components) {
             this.deck = components.deck;
             this.cards = components.cards;
             this.collected = components.collected;
-            this.opponents = components.opponents;
             return;
         }
         this.deck = new Deck();
@@ -123,31 +119,19 @@ export class Table {
         // this.deck.cards.splice(0, 66);
     }
 
-    setOpponents(opponents: { id: string, name: string}[]) {
-        if (this.collected.length !== 0) {
-            console.error("Warning: attempting to set opponents after cards have been collected");
-        }
-        this.opponents = {};
-        opponents.forEach(({ id, name }) => {
-            this.opponents[id] = { name, collected: [] };
-        });
-    }
-
     toPlain() {
         return {
             deck: this.deck.cards,
             cards: this.cards,
             collected: this.collected,
-            opponents: this.opponents,
         };
     }
 
-    static fromPlain(plain: { deck: Card[], cards: Card[], collected: Card[], opponents: Opponents }) {
+    static fromPlain(plain: { deck: Card[], cards: Card[], collected: Card[] }) {
         const deck = new Deck(plain.deck);
         const cards = plain.cards;
         const collected = plain.collected;
-        const opponents = plain.opponents;
-        return new Table({ deck, cards, collected, opponents });
+        return new Table({ deck, cards, collected });
     }
 
     shuffleVisible() {
@@ -244,24 +228,27 @@ export class Table {
      * the removed cards.
      *
      * @param cardIndices Indices of the cards to attempt to remove.
+     * @param collect Whether to add the removed cards to the `collected` cards list. Defaults to true.
      * @returns An object with a boolean property `success` indicating whether
      * the triad was successfully removed, and a boolean property `gameIsOver`
      * indicating whether the game is over after attempting to remove the triad.
      */
-    attemptRemoveTriad(cardIndices: [number, number, number]) {
+    attemptRemoveTriad(cardIndices: [number, number, number], collect: boolean = true) {
         let gameIsOver = false;
         const success =  isTriad(this.cards[cardIndices[0]], this.cards[cardIndices[1]], this.cards[cardIndices[2]]);
 
         if (success) {
-            this.collected = [
-                ...this.collected,
-                this.cards[cardIndices[0]],
-                this.cards[cardIndices[1]],
-                this.cards[cardIndices[2]],
-            ];
+            if (collect) {
+                this.collected = [
+                    ...this.collected,
+                    this.cards[cardIndices[0]],
+                    this.cards[cardIndices[1]],
+                    this.cards[cardIndices[2]],
+                ];
+            }
             gameIsOver = !this.drawNewCards(...cardIndices);
         }
 
-        return {  success, gameIsOver };
+        return { success, gameIsOver };
     }
 }
