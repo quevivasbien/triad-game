@@ -260,15 +260,13 @@ export default function Page() {
     }
 
     return (
-        <div>
-            <MultiplayerGame
-                table={table}
-                actionCallback={actionCallback}
-                opponents={opponents}
-                opponentCollectedHighlights={opponentCollectedHighlights}
-                showGameOverInfo={gameIsOver}
-                exitGameCallback={exitGameCallback}
-            />
-        </div>
+        <MultiplayerGame
+            table={table}
+            actionCallback={actionCallback}
+            opponents={opponents}
+            opponentCollectedHighlights={opponentCollectedHighlights}
+            showGameOverInfo={gameIsOver}
+            exitGameCallback={exitGameCallback}
+        />
     );
 }

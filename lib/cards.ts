@@ -116,7 +116,7 @@ export class Table {
             this.deck = new Deck();
             this.cards = this.deck.draw(12);
         }
-        this.deck.cards.splice(0, 66);
+        // this.deck.cards.splice(0, 66);
     }
 
     toPlain() {

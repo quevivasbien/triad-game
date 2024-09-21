@@ -322,7 +322,7 @@ export default function Page() {
     }
 
     return (
-        <div className="flex flex-col sm:max-w-3xl mx-auto gap-8">
+        <div className="flex flex-col sm:max-w-3xl gap-8">
             <h1 className="text-3xl">Lobby</h1>
             {lobbyPassword ? <p>Password: {lobbyPassword}</p> : null}
             <div>
