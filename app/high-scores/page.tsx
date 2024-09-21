@@ -85,7 +85,7 @@ export default function HighScoresPage() {
     }, [filterNoHints]);
 
     return (
-        <div className="flex flex-col gap-4 max-w-5xl">
+        <div className="flex flex-col gap-4 max-w-5xl mx-auto">
             <h1 className="text-xl sm:text-3xl">High Scores</h1>
             <label className="flex flex-row gap-2">
                 <input type="checkbox" checked={filterNoHints} onChange={() => setFilterNoHints(!filterNoHints)} />

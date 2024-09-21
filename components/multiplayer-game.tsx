@@ -1,14 +1,11 @@
 "use client";
 
-import { Card, Table } from "@/lib/cards";
+import { Table } from "@/lib/cards";
 import { useEffect, useState } from "react";
-import TableView from "./table-view";
 import { MultiplayerAction, Opponents } from "@/lib/types";
 import { secondsToTimeString } from "@/utils/utils";
-import { useRouter } from "next/navigation";
 import MultiplayerTableView from "./multiplayer-table-view";
 import { Button } from "./ui/button";
-import { createClient } from "@/utils/supabase/client";
 
 
 function TimeDisplay({ time }: { time: number }) {

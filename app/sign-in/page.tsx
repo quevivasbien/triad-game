@@ -16,7 +16,7 @@ export default function Login() {
   }
 
   return (
-    <div>
+    <div className="mx-auto">
       <Turnstile
         sitekey={sitekey}
         onVerify={onverify}

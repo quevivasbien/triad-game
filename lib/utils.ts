@@ -6,6 +6,33 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * Computes the Cartesian product of the given arrays.
+ * @param args The arrays to take the product of.
+ * @returns An array of arrays, where each inner array is an element of the Cartesian product.
+ * @example
+ * product([1, 2], ['a', 'b']) // [[1, 'a'], [1, 'b'], [2, 'a'], [2, 'b']]
+ */
+export function product(...args: any[][]): any[][] {
+  return args.reduce((a, b) => a.flatMap((d: any) => b.map((e: any) => [d, e].flat())));
+}
+
+/**
+ * Randomly samples n elements from the given array, with replacement.
+ * @param arr The array to sample from.
+ * @param n The number of elements to sample.
+ * @returns An array of n elements, randomly sampled from the input array.
+ * @example
+ * sample([1, 2, 3], 2) // [1, 3]
+ */
+export function sample<T>(arr: T[], n: number) {
+  const out: T[] = [];
+  for (let i = 0; i < n; i++) {
+    out.push(arr[Math.floor(Math.random() * arr.length)]);
+  }
+  return out;
+}
+
 export function getRotations(n: number) {
   return Array.from({ length: n }).map(_ => Math.round(Math.random() * 4 - 2));
 }

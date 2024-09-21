@@ -23,16 +23,17 @@ function UserEntry(
         kickFn: (uid: string) => void
     }
 ) {
-    const kickButton = myUID === "host" && uid !== myUID ? (
+    console.log("UserEntry", uid, name, myUID, host);
+    const kickButton = myUID === host && uid !== myUID ? (
         <Button variant="secondary" onClick={() => kickFn(uid)}>Kick</Button>
     ) : null;
-    const presentIcon = uid === host ? <abbr title="Host"><Star /></abbr> : null;
+    const isHostIcon = uid === host ? <abbr title="Host"><Star /></abbr> : null;
     return (
         <div className="flex flex-row items-center justify-between gap-2 p-2">
             <div className="text-lg">{name}{uid === myUID ? " (you)" : ""}</div>
             <div className="flex flex-row items-center gap-2">
                 {kickButton}
-                {presentIcon}
+                {isHostIcon}
             </div>
         </div>
     );
@@ -322,7 +323,7 @@ export default function Page() {
     }
 
     return (
-        <div className="flex flex-col sm:max-w-3xl gap-8">
+        <div className="flex flex-col sm:max-w-3xl gap-8 mx-auto">
             <h1 className="text-3xl">Lobby</h1>
             {lobbyPassword ? <p>Password: {lobbyPassword}</p> : null}
             <div>

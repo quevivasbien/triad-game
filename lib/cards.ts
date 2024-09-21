@@ -1,18 +1,9 @@
+import { product } from "./utils";
+
 export type Color = "red" | "green" | "blue";
 export type Number = 1 | 2 | 3;
 export type Shape = "circle" | "triangle" | "square";
-export type Pattern = "solid" | "striped" | "outlined";
-
-/**
- * Computes the Cartesian product of the given arrays.
- * @param args The arrays to take the product of.
- * @returns An array of arrays, where each inner array is an element of the Cartesian product.
- * @example
- * product([1, 2], ['a', 'b']) // [[1, 'a'], [1, 'b'], [2, 'a'], [2, 'b']]
- */
-function product(...args: any[][]): any[][] {
-    return args.reduce((a, b) => a.flatMap((d: any) => b.map((e: any) => [d, e].flat())));
-}
+export type Pattern = "solid" | "muted" | "outlined";
 
 function shuffle<T>(array: T[]) {
     for (let i = array.length - 1; i >= 0; i--) {
@@ -76,7 +67,7 @@ export class Deck {
             ["red", "green", "blue"],
             [1, 2, 3],
             ["circle", "triangle", "square"],
-            ["solid", "striped", "outlined"],
+            ["solid", "muted", "outlined"],
         ) as [Color, Number, Shape, Pattern][])
             .map(([ color, number, shape, pattern ]) => {
                 return {

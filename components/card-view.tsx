@@ -7,13 +7,15 @@ const svgViewBox = `0 0 ${svgSize} ${svgSize}`;
 const svgStrokeWidth = 10;
 
 const hueBase = 20;
-const saturation = 60;
-const lightness = 35;
+const saturation = 100;
+const lightness = 30;
 
 const red = `hsl(${hueBase}, ${saturation}%, ${lightness}%)`;
-const green = `hsl(${hueBase + 120}, ${saturation}%, ${lightness}%)`;
-const blue = `hsl(${hueBase + 240}, ${saturation}%, ${lightness}%)`;
-const gray = `hsl(0, 0%, 75%)`;
+const mutedRed = `hsl(${hueBase}, ${Math.round(saturation / 2)}%, ${Math.round(lightness * 2.5)}%)`;
+const green = `hsl(${(hueBase + 120) % 360}, ${saturation}%, ${lightness}%)`;
+const mutedGreen = `hsl(${(hueBase + 120) % 360}, ${Math.round(saturation / 2)}%, ${Math.round(lightness * 2.5)}%)`;
+const blue = `hsl(${(hueBase + 240) % 360}, ${saturation}%, ${lightness}%)`;
+const mutedBlue = `hsl(${(hueBase + 240) % 360}, ${Math.round(saturation / 2)}%, ${Math.round(lightness * 2.5)}%)`;
 
 function Circle({ color, fillColor }: { color: string, fillColor: string }) {
     const svgProps = {
@@ -29,7 +31,7 @@ function Circle({ color, fillColor }: { color: string, fillColor: string }) {
 
 function Triangle({ color, fillColor }: { color: string, fillColor: string }) {
     const svgProps = {
-        points: `${svgSize / 2},${svgStrokeWidth} ${svgSize-svgStrokeWidth},${svgSize-svgStrokeWidth} ${svgStrokeWidth},${svgSize-svgStrokeWidth}`,
+        points: `${svgSize / 2},${svgStrokeWidth} ${svgSize - svgStrokeWidth},${svgSize - svgStrokeWidth} ${svgStrokeWidth},${svgSize - svgStrokeWidth}`,
         stroke: color,
         fill: fillColor,
         strokeWidth: svgStrokeWidth,
@@ -53,7 +55,7 @@ function Square({ color, fillColor }: { color: string, fillColor: string }) {
 export default function CardView({ card, selected = false }: { card: Card, selected?: boolean }) {
     const className = `flex items-center justify-center bg-card border rounded-lg w-20 h-24 sm:w-40 sm:h-48 p-4 ${selected ? "border-accent shadow-lg shadow-accent/80" : "shadow-md"}`;
 
-    let color;
+    let color: string;
     switch (card.color) {
         case "red":
             color = red;
@@ -66,20 +68,30 @@ export default function CardView({ card, selected = false }: { card: Card, selec
             break;
     }
 
-    let fillColor;
+    let fillColor: string;
     switch (card.pattern) {
         case "solid":
             fillColor = color;
             break;
-        case "striped":
-            fillColor = gray;
+        case "muted":
+            switch (card.color) {
+                case "red":
+                    fillColor = mutedRed;
+                    break;
+                case "green":
+                    fillColor = mutedGreen;
+                    break;
+                case "blue":
+                    fillColor = mutedBlue;
+                    break;
+            }
             break;
         case "outlined":
             fillColor = "none";
             break;
     }
 
-    let shape;
+    let shape: JSX.Element;
     switch (card.shape) {
         case "circle":
             shape = <Circle color={color} fillColor={fillColor} />;

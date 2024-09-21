@@ -285,7 +285,7 @@ export default function MultiplayerPage() {
     }
 
     return (
-        <div className="flex flex-col gap-8 sm:gap-16 w-full sm:max-w-3xl p-4">
+        <div className="flex flex-col gap-8 sm:gap-16 w-full sm:max-w-3xl p-4 mx-auto">
             <form className="flex flex-col sm:max-w-xl self-center gap-4 p-5 bg-card border rounded" onSubmit={createLobby}>
                 <h2 className="text-lg sm:text-2xl">Create a new lobby</h2>
                 <label className="flex flex-row flex-wrap justify-between items-center gap-x-4">
