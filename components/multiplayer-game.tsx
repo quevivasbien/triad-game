@@ -28,7 +28,7 @@ function GameOverInfo({
 }) {
     const collectedCounts = [
         ...Object.values(opponents).map(({ name, collected }) => ({ name, collected: collected.length })),
-        { name: "You", collected: table.cards.length }
+        { name: "You", collected: table.collected.length }
     ];
     collectedCounts.sort((a, b) => b.collected - a.collected);
 

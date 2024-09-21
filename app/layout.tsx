@@ -52,7 +52,7 @@ export default function RootLayout({
           <main className="min-h-screen flex flex-col items-center">
             <div className="flex-1 w-full flex flex-col gap-2 sm:gap-8 items-center">
               <nav className="w-full flex justify-center py-4 border-b border-b-foreground/10">
-                <div className="flex flex-row justify-between items-center w-full mx-12 sm:w-1/2 gap-12">
+                <div className="flex flex-row justify-between items-center w-full mx-12 md:w-3/4 lg:w-1/2 gap-12">
                   <Link className="flex flex-row gap-2 items-center" href="/">
                     <div className="text-xl sm:text-3xl font-semibold">Triad</div>
                     <div className="w-8 h-8 sm:w-12 sm:h-12">

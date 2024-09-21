@@ -69,7 +69,6 @@ function Lobby({
 }) {
     const [expanded, setExpanded] = useState(false);
 
-    // TODO: deal with password
     return (
         <div className={"flex flex-col gap-4 p-4 sm:p-6" + (expanded ? " bg-card" : "")}>
             <button className="flex flex-row gap-2 justify-between items-center" onClick={() => setExpanded(expanded => !expanded)}>
@@ -216,8 +215,7 @@ export default function MultiplayerPage() {
 
         // TODO: Form validation
 
-        // TODO: This needs to be a different channel than the actual lobby channel
-        const channel = supabase.channel("lobby:" + hostID);
+        const channel = supabase.channel("lobby-request:" + hostID);
         channel.subscribe((status) => {
             if (status !== "SUBSCRIBED") {
                 console.error("Failed to subscribe to lobby", hostID, status);

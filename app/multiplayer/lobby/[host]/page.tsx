@@ -71,14 +71,13 @@ export default function Page() {
         console.log("kickedUsers", kickedUsers);
     }, [kickedUsers]);
 
-    // Create realtime channel to communicate with lobber members / respond to join requests
-    const [channel, setChannel] = useState<RealtimeChannel | null>(null);
+    // If host, watch the lobby-request channel for new join requests
     useEffect(() => {
-        if (!user) {
+        if (!user || user.id !== host) {
             return;
         }
 
-        const channel = supabase.channel("lobby:" + host);
+        const channel = supabase.channel("lobby-request:" + host);
 
         function informJoiner(recipientUID: string, admitted: boolean) {
             channel.send({
@@ -91,38 +90,71 @@ export default function Page() {
             });
         }
 
-        if (user.id === host) {
-            // Watch for new users trying to join
-            channel.on(
-                "broadcast",
-                { event: "join" },
-                async (payload) => {
-                    const { uid, name, password } = payload.payload;
-                    console.log("Received join message", payload);
-                    // Update the lobby
-                    // TODO: Deal with password
-                    if (password !== lobbyPassword) {
-                        console.log("Wrong password");
-                        informJoiner(uid, false);
-                        return;
-                    }
-                    if (membersPresent.map((m) => m.uid).includes(uid)) {
-                        console.error("User already in lobby");
-                        informJoiner(uid, false);
-                        return;
-                    }
-                    console.log(kickedUsers, uid);
-                    if (kickedUsers.includes(uid)) {
-                        console.error("User already kicked");
-                        informJoiner(uid, false);
-                        return;
-                    }
-                    // TODO: Add to lobbyMembers table
-                    // Inform the new member that they've been admitted
-                    informJoiner(uid, true);
+        // Watch for new users trying to join
+        channel.on(
+            "broadcast",
+            { event: "join" },
+            async (payload) => {
+                const { uid, name, password } = payload.payload;
+                console.log("Received join message", payload);
+                if (password !== lobbyPassword) {
+                    console.log("Wrong password");
+                    informJoiner(uid, false);
+                    return;
                 }
-            );
-        } else {
+                if (membersPresent.map((m) => m.uid).includes(uid)) {
+                    console.error("User already in lobby");
+                    informJoiner(uid, false);
+                    return;
+                }
+                if (kickedUsers.includes(uid)) {
+                    console.error("User already kicked");
+                    informJoiner(uid, false);
+                    return;
+                }
+                // User is allowed to join
+                // Add the user to the lobbyMembers table
+                const { error } = await supabase.from("lobbyMembers")
+                    .upsert(
+                        { guest_id: uid },
+                        { onConflict: "host_id,guest_id", ignoreDuplicates: true }
+                    );
+                if (error) {
+                    console.error("Error creating table entry for joiner:", error);
+                    informJoiner(uid, false);
+                    return;
+                }
+                // Inform the new member that they've been admitted
+                informJoiner(uid, true);
+            }
+        );
+
+        channel.subscribe((status) => {
+            if (status !== "SUBSCRIBED") {
+                console.error("Failed to subscribe to joiner's lobby", status);
+            }
+        });
+        
+        return () => {
+            channel.unsubscribe();
+        };
+    }, [user]);
+
+    // Create realtime channel to communicate with lobber members / respond to join requests
+    const [channel, setChannel] = useState<RealtimeChannel | null>(null);
+    useEffect(() => {
+        if (!user) {
+            return;
+        }
+
+        const channel = supabase.channel(
+            "lobby:" + host,
+            {
+                config: { private: true }
+            }
+        );
+
+        if (user.id !== host) {
             // Watch for kick events
             channel.on(
                 "broadcast",
@@ -156,7 +188,11 @@ export default function Page() {
             () => {
                 const presenceState = channel.presenceState();
                 console.log("Received presence sync", presenceState);
-                let membersPresent = extractValuesFromPresenceState(presenceState, ["uid", "name"]) as { uid: string, name: string }[];
+                let membersPresent = extractValuesFromPresenceState(
+                    presenceState,
+                    ["uid", "name"],
+                    "uid"
+                ) as { uid: string, name: string }[];
                 setMembersPresent(membersPresent);
             }
         );
@@ -191,8 +227,9 @@ export default function Page() {
         }
         // Remove user from lobby
         supabase.from("lobbyMembers")
-            .update({ members: membersPresent.filter(m => m.uid !== uid) })
+            .delete()
             .eq("host_id", host)
+            .eq("guest_id", uid)
             .then(({ error }) => {
                 if (error) {
                     console.error("Error kicking user", error);
@@ -221,15 +258,6 @@ export default function Page() {
             console.error("Channel is null when starting game");
             return;
         }
-        // Delete lobby
-        supabase.from("lobbies")
-            .delete()
-            .eq("host_id", host)
-            .then(({ error }) => {
-                if (error) {
-                    console.error("Error deleting lobby", error);
-                }
-            });
         // Create game
         await supabase.from("games")
             .upsert(
@@ -252,6 +280,23 @@ export default function Page() {
         }).then((response) => {
             console.log("Sent start message, got response", response);
         });
+        // Wait a bit, then delete lobby
+        // Wait is necessary, since permission for channel depends on entry in lobbyMembers table still existing
+        setTimeout(
+            () => {
+                supabase.from("lobbies")
+                .delete()
+                .eq("host_id", host)
+                .then(({ error }) => {
+                    if (error) {
+                        console.error("Error deleting lobby", error);
+                    } else {
+                        console.log("Deleted lobby");
+                    }
+                });
+            },
+            2_500
+        );
 
         router.push("/multiplayer/game/" + host);
     }
@@ -278,6 +323,7 @@ export default function Page() {
 
     return (
         <div className="flex flex-col sm:max-w-3xl mx-auto gap-8">
+            <h1 className="text-3xl">Lobby</h1>
             {lobbyPassword ? <p>Password: {lobbyPassword}</p> : null}
             <div>
                 <h2 className="text-xl">Members</h2>

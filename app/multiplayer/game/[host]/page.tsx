@@ -111,7 +111,12 @@ export default function Page() {
             return;
         }
 
-        const channel = supabase.channel(`game:${host}`);
+        const channel = supabase.channel(
+            `game:${host}`,
+            {
+                config: { private: true }
+            }
+        );
 
         // Track who's present
         channel.on(
