@@ -103,13 +103,17 @@ function TimeDisplay({ time }: { time: number }) {
 
 function loadState() {
     // Get table from local storage if it exists, otherwise create new table
-    const data = localStorage.getItem("savedGameState");
-    if (data) {
-        const { time, table } = JSON.parse(data);
-        return {
-            time,
-            table: Table.fromPlain(table)
-        };
+    try {
+        const data = localStorage.getItem("savedGameState");
+        if (data) {
+            const { time, table } = JSON.parse(data);
+            return {
+                time,
+                table: Table.fromPlain(table)
+            };
+        }
+    } catch (error) {
+        console.error(error);
     }
     return { time: 0, table: new Table() };
 }

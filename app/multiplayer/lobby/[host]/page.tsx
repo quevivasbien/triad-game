@@ -23,7 +23,6 @@ function UserEntry(
         kickFn: (uid: string) => void
     }
 ) {
-    console.log("UserEntry", uid, name, myUID, host);
     const kickButton = myUID === host && uid !== myUID ? (
         <Button variant="secondary" onClick={() => kickFn(uid)}>Kick</Button>
     ) : null;
@@ -263,8 +262,10 @@ export default function Page() {
         await supabase.from("games")
             .upsert(
                 {
+                    created_at: new Date().toISOString(),
                     player_ids: membersPresent.map(m => m.uid),
                     player_names: membersPresent.map(m => m.name),
+                    game_state: null,
                 },
                 { ignoreDuplicates: false, onConflict: "host_id" }
             )

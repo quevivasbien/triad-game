@@ -49,6 +49,7 @@ function GameOverInfo({
 
 export default function MultiplayerGame({
     table,
+    startTime,
     actionCallback,
     opponents,
     opponentCollectedHighlights,
@@ -56,13 +57,14 @@ export default function MultiplayerGame({
     exitGameCallback
 }: {
     table: Table,
+    startTime: Date,
     actionCallback: (action: MultiplayerAction) => void,
     opponents: Opponents,
     opponentCollectedHighlights: number[],
     showGameOverInfo: boolean,
     exitGameCallback: () => void
 }) {
-    const [time, setTime] = useState(0);
+    const [time, setTime] = useState(Math.round((new Date().getTime() - startTime.getTime()) / 1000));
 
     useEffect(() => {
         if (!showGameOverInfo) {

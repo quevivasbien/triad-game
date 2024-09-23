@@ -1,10 +1,10 @@
 "use client";
 
 import MultiplayerGame from "@/components/multiplayer-game";
-import { Table } from "@/lib/cards";
+import { compressCard, decompressCard, Table } from "@/lib/cards";
 import { TRIAD_HIGHLIGHT_TIMEOUT_MS } from "@/lib/constants";
 import { MultiplayerAction, Opponents } from "@/lib/types";
-import { extractValuesFromPresenceState } from "@/lib/utils";
+// import { extractValuesFromPresenceState } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
 import { RealtimeChannel, User } from "@supabase/supabase-js";
 import { useParams, useRouter } from "next/navigation";
@@ -15,21 +15,32 @@ interface Player {
     name: string;
 }
 
+interface GameState {
+    collected: Record<string, string[]>;
+    deck: string[];
+    inPlay: string[];
+    gameOver: boolean;
+}
+
 export default function Page() {
     const router = useRouter();
     const host = useParams<{ host: string }>().host;
     const supabase = useMemo(() => createClient(), []);
 
-    // Warn user before leaving page
-    useEffect(() => {
-        window.addEventListener("beforeunload", (e) => {
-            e.preventDefault();
-            return "Are you sure you want to leave the game?";
-        });
-    }, []);
+    // // Warn user before leaving page
+    // useEffect(() => {
+    //     const beforeunload = (e: BeforeUnloadEvent) => {
+    //         e.preventDefault();
+    //         return "Are you sure you want to leave the game?";
+    //     };
+    //     window.addEventListener("beforeunload", beforeunload);
+        
+    //     return () => {
+    //         window.removeEventListener("beforeunload", beforeunload);
+    //     }
+    // }, []);
 
     const [user, setUser] = useState<User | null>(null);
-
     useEffect(() => {
         supabase.auth.getUser().then(({ data: { user } }) => {
             if (!user) {
@@ -41,13 +52,9 @@ export default function Page() {
     }, []);
 
     const [players, setPlayers] = useState<Player[] | null>(null);
-    const [playersPresent, setPlayersPresent] = useState<string[]>(() => []);
-    const [opponents, setOpponents] = useState<Opponents | null>(null);
+    const [startTime, setStartTime] = useState<Date | null>(null);
+    // const [playersPresent, setPlayersPresent] = useState<string[]>(() => []);
     const [errorText, setErrorText] = useState<string | null>(null);
-
-    useEffect(() => {
-        console.log("opponents", opponents)
-    }, [opponents]);
 
     // Get list of players
     useEffect(() => {
@@ -55,7 +62,7 @@ export default function Page() {
             return;
         }
         supabase.from("games")
-            .select("player_ids, player_names")
+            .select("created_at, player_ids, player_names")
             .eq("host_id", host)
             .single()
             .then(({ data, error }) => {
@@ -67,9 +74,11 @@ export default function Page() {
                     }
                     return;
                 }
+                console.log("Received data", data);
                 const players = data.player_ids.map((id: string, index: number) => {
                     return { id, name: data.player_names[index] };
                 }) as Player[];
+                setStartTime(new Date(data.created_at));
                 setPlayers(players);
                 setOpponents(Object.fromEntries(
                     players
@@ -78,6 +87,85 @@ export default function Page() {
                 ));
             });
     }, [user]);
+
+    const [table, setTable] = useState<Table | null>(null);
+    const [opponents, setOpponents] = useState<Opponents | null>(null);
+    const [gameIsOver, setGameIsOver] = useState<boolean>(false);
+
+    function setGameState(user: User, players: Player[], gameState: GameState) {
+        const opponents: Opponents = {};
+        for (const { id, name } of players) {
+            if (id !== user.id) {
+                opponents[id] = { name, collected: gameState.collected[id].map(decompressCard) };
+            }
+        }
+        setOpponents(opponents);
+        const plainTable = {
+            cards: gameState.inPlay,
+            deck: gameState.deck,
+            collected: gameState.collected[user.id]
+        };
+        const table = Table.fromPlain(plainTable);
+        setTable(table);
+        setGameIsOver(gameState.gameOver);
+    }
+
+    function getGameState(user: User, opponents: Opponents, table: Table, gameIsOver: boolean) {
+        const gameState: GameState = {
+            inPlay: table.cards.map(compressCard),
+            deck: table.deck.cards.map(compressCard),
+            collected: Object.fromEntries(Object.entries(opponents).map(([id, { collected }]) => [id, collected.map(compressCard)])),
+            gameOver: gameIsOver,
+        };
+        gameState.collected[user.id] = table.collected.map(compressCard);
+        return gameState;
+    }
+
+    useEffect(() => {
+        if (!user || !players) {
+            return;
+        }
+        (async () => {
+            // Check if game state is already available on DB
+            const { data, error } = await supabase
+                .from("games")
+                .select("game_state")
+                .eq("host_id", host)
+                .single();
+            if (error) {
+                throw new Error(`Error getting game state: ${error}`);
+            }
+            if (data?.game_state) {
+                // If game state is available, set it
+                setGameState(user, players, data.game_state);
+            } else if (user.id === host) {
+                // If not, and user is host, initialize it
+                const table = new Table();
+                const opponents = Object.fromEntries(
+                    players
+                        .filter(({ id }) => id !== user.id)
+                        .map(({ id, name }: Player) => [id, { name, collected: [] }])
+                );
+                const gameState = getGameState(user, opponents, table, false);
+                setGameState(user, players, gameState);
+
+                console.log("Uploading game state to DB", gameState);
+
+                // Upload to DB
+                await supabase
+                    .from("games")
+                    .update({ game_state: gameState })
+                    .eq("host_id", host)
+                    .select("host_id")
+                    .single()
+                    .then(({ error }) => {
+                        if (error) {
+                            throw new Error(`Error uploading game state: ${error}`);
+                        }
+                    });
+            }
+        })();
+    }, [user, players])
 
     const [exitGameCallback, setExitGameCallback] = useState<() => void>(() => (
         () => {
@@ -100,10 +188,9 @@ export default function Page() {
                 });
             router.push("/multiplayer");
         }));
-    }, [user])
+    }, [user]);
 
     const [channel, setChannel] = useState<RealtimeChannel | null>(null);
-    const [table, setTable] = useState<Table | null>(null);
 
     // Initialize game communication channel
     useEffect(() => {
@@ -118,26 +205,28 @@ export default function Page() {
             }
         );
 
-        // Track who's present
-        channel.on(
-            "presence",
-            { event: "sync" },
-            () => {
-                const state = channel.presenceState();
-                console.log("presence state", state);
-                const playersPresent = extractValuesFromPresenceState(state, ["uid"]).map(({ uid }) => uid);
-                setPlayersPresent(playersPresent as string[]);
-            }
-        );
+        // // Track who's present
+        // channel.on(
+        //     "presence",
+        //     { event: "sync" },
+        //     () => {
+        //         const state = channel.presenceState();
+        //         const playersPresent = extractValuesFromPresenceState(state, ["uid"], "uid").map(({ uid }) => uid);
+        //         setPlayersPresent(playersPresent as string[]);
+        //     }
+        // );
 
-        // If not host, listen for initial table state
+        // If not host, listen for game state updates
         if (user.id !== host) {
             channel.on(
-                "broadcast",
-                { event: "table" },
+                "postgres_changes",
+                { event: "UPDATE", schema: "public", table: "games", filter: `host_id=eq.${host}` },
                 (payload) => {
-                    const initialTable = Table.fromPlain(payload.payload);
-                    setTable(initialTable);
+                    if (!payload.new["game_state"]) {
+                        return;
+                    }
+                    console.log("Received game state update", payload.new["game_state"]);
+                    setGameState(user, players, payload.new["game_state"]);
                 }
             );
         }
@@ -148,8 +237,8 @@ export default function Page() {
                 return;
             }
 
-            // Send presence status
-            channel.track({ uid: user.id });
+            // // Send presence status
+            // channel.track({ uid: user.id });
         });
 
         setChannel(channel);
@@ -158,54 +247,65 @@ export default function Page() {
         };
     }, [user, players, opponents]);
 
-    useEffect(() => {
-        // Wait for user, players, and channel to be initialized
-        // If not host, table will be received from host on channel
-        if (user === null || players === null || channel === null || user.id !== host) {
-            return;
-        }
-        // Don't send out table until all players are present
-        if (!players.reduce((acc, p) => acc && playersPresent.includes(p.id), true)) {
-            return;
-        }
-        // Create table
-        const initialTable = new Table();
-        // Send to other players
-        channel?.send({
-            type: "broadcast",
-            event: "table",
-            payload: initialTable.toPlain(),
-        });
-        setTable(initialTable);
-    }, [user, players, playersPresent, channel]);
-
     // Action callback is called when you do something on the table
     // It will send that action to the other players
     const [actionCallback, setActionCallback] = useState<((action: MultiplayerAction) => void) | null>(null);
     const [opponentCollectedHighlights, setOpponentCollectedHighlights] = useState<number[]>(() => []);
-    const [gameIsOver, setGameIsOver] = useState<boolean>(false);
     useEffect(() => {
-        if (user === null || channel === null || table === null) {
+        if (user === null || opponents === null || channel === null || table === null) {
             return;
         }
-        console.log("Called action callback effect");
+        
+        const handleActionAsHost = (sender: string, action: MultiplayerAction) => {
+            let gameOver = false;
+            if (user.id === sender && action.type === "gameover") {
+                gameOver = true;
+            } else if (user.id !== sender && action.type === "triad") {
+                const cards = [
+                    table.cards[action.triad[0]],
+                    table.cards[action.triad[1]],
+                    table.cards[action.triad[2]],
+                ];
+                const { success, gameIsOver } = table.attemptRemoveTriad(action.triad, false);
+                if (!success) {
+                    throw new Error("User reported invalid triad");
+                }
+                gameOver = gameIsOver;
+                // Add to opponent's collected cards
+                opponents[sender].collected = [...opponents[sender].collected, ...cards];
+            }
+            setGameIsOver(gameOver);
+            // Push game state update to database
+            const gameState = getGameState(user, opponents, table, gameOver);
+            supabase
+                .from("games")
+                .update({ game_state: gameState })
+                .eq("host_id", host)
+                .select("host_id")  // For some reason, when updating JSON data, we need to select afterward
+                .single()
+                .then(({ error }) => {
+                    if (error) {
+                        console.error("Error updating game state", error);
+                    }
+                });
+        }
 
         setActionCallback(() => ((action: MultiplayerAction) => {
-            // Instead of sending gameover action, just set gameIsOver = true.
-            // Other players will figure out for themselves that the game is over
-            if (action.type === "gameover") {
-                setGameIsOver(true);
-                return;
+            if (user.id === host) {
+                // Handle own actions here, since we won't see the channel messages we send ourselves
+                handleActionAsHost(user.id, action);
             }
-            console.log("Sending action", action);
-            channel.send({
-                type: "broadcast",
-                event: "action",
-                payload: {
-                    sender: user.id,
-                    action
-                }
-            });
+            if (action.type === "triad") {
+                console.log("Sending action", action);
+                channel.send({
+                    type: "broadcast",
+                    event: "action",
+                    payload: {
+                        sender: user.id,
+                        action
+                    }
+                });
+            }
         }));
 
         // Also respond to any actions received
@@ -215,39 +315,24 @@ export default function Page() {
             (payload) => {
                 console.log("Received action payload", payload);
                 const { sender, action } = payload.payload as { sender: string, action: MultiplayerAction };
-                if (sender === user.id) {
-                    // No need to do anything if we're the sender
-                    return;
-                }
+
                 if (action.type === "triad") {
-                    const cards = [
-                        table.cards[action.triad[0]],
-                        table.cards[action.triad[1]],
-                        table.cards[action.triad[2]],
-                    ];
-                    const { success, gameIsOver } = table.attemptRemoveTriad(action.triad, false);
-                    if (!success) {
-                        throw new Error("User reported invalid triad");
-                    }
                     // Highlight triad
                     setOpponentCollectedHighlights(action.triad);
                     setTimeout(() => {
                         setOpponentCollectedHighlights([]);
                     }, TRIAD_HIGHLIGHT_TIMEOUT_MS);
-                    // Add to opponent's collected cards
-                    if (opponents === null) {
-                        throw new Error("opponents not initialized");
+    
+                    // Host will check that triad is valid and update game state
+                    // Others don't need to do anything after this stage
+                    if (user.id !== host) {
+                        return;
                     }
-                    opponents[sender].collected = [...opponents[sender].collected, ...cards];
-                    if (gameIsOver) {
-                        setGameIsOver(true);
-                    }
-                } else {
-                    console.log("Received action", action);
+                    handleActionAsHost(sender, action);
                 }
             }
         );
-    }, [user, channel, table]);
+    }, [user, opponents, channel, table]);
 
     if (errorText) {
         return (
@@ -255,13 +340,14 @@ export default function Page() {
         );
     }
 
-    if (opponents === null || table === null || actionCallback === null) {
+    if (startTime === null || opponents === null || table === null || actionCallback === null) {
         return <p className="text-lg text-center">Loading...</p>;
     }
 
     return (
         <MultiplayerGame
             table={table}
+            startTime={startTime}
             actionCallback={actionCallback}
             opponents={opponents}
             opponentCollectedHighlights={opponentCollectedHighlights}

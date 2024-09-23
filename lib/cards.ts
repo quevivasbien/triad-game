@@ -1,9 +1,9 @@
 import { product } from "./utils";
 
-export type Color = "red" | "green" | "blue";
-export type Number = 1 | 2 | 3;
-export type Shape = "circle" | "triangle" | "square";
-export type Pattern = "solid" | "muted" | "outlined";
+type Color = "red" | "green" | "blue";
+type CardNumber = 1 | 2 | 3;
+type Shape = "circle" | "triangle" | "square";
+type Pattern = "solid" | "muted" | "outlined";
 
 function shuffle<T>(array: T[]) {
     for (let i = array.length - 1; i >= 0; i--) {
@@ -50,9 +50,43 @@ function isTriad(c1: Card, c2: Card, c3: Card) {
 
 export interface Card {
     color: Color,
-    number: Number,
+    number: CardNumber,
     shape: Shape,
     pattern: Pattern
+}
+
+export function compressCard(card: Card) {
+    return card.color[0] + card.number + card.shape[0] + card.pattern[0];
+}
+
+export function decompressCard(card: string) {
+    let color: Color;
+    switch (card[0]) {
+        case "r": color = "red"; break;
+        case "g": color = "green"; break;
+        case "b": color = "blue"; break;
+        default: throw new Error("Invalid card");
+    }
+
+    let number = parseInt(card[1]) as CardNumber;
+
+    let shape: Shape;
+    switch (card[2]) {
+        case "c": shape = "circle"; break;
+        case "t": shape = "triangle"; break;
+        case "s": shape = "square"; break;
+        default: throw new Error("Invalid card");
+    }
+
+    let pattern: Pattern;
+    switch (card[3]) {
+        case "s": pattern = "solid"; break;
+        case "m": pattern = "muted"; break;
+        case "o": pattern = "outlined"; break;
+        default: throw new Error("Invalid card");
+    }
+
+    return { color, number, shape, pattern };
 }
 
 export class Deck {
@@ -68,7 +102,7 @@ export class Deck {
             [1, 2, 3],
             ["circle", "triangle", "square"],
             ["solid", "muted", "outlined"],
-        ) as [Color, Number, Shape, Pattern][])
+        ) as [Color, CardNumber, Shape, Pattern][])
             .map(([ color, number, shape, pattern ]) => {
                 return {
                     color, number, shape, pattern
@@ -86,6 +120,8 @@ export class Deck {
         this.cards.push(card);
     }
 }
+
+export type PlainTable = { deck: string[], cards: string[], collected: string[] };
 
 export class Table {
     deck: Deck;
@@ -107,21 +143,21 @@ export class Table {
             this.deck = new Deck();
             this.cards = this.deck.draw(12);
         }
-        // this.deck.cards.splice(0, 66);
+        this.deck.cards.splice(0, 66);
     }
 
-    toPlain() {
+    toPlain(): PlainTable {
         return {
-            deck: this.deck.cards,
-            cards: this.cards,
-            collected: this.collected,
+            deck: this.deck.cards.map(compressCard),
+            cards: this.cards.map(compressCard),
+            collected: this.collected.map(compressCard),
         };
     }
 
-    static fromPlain(plain: { deck: Card[], cards: Card[], collected: Card[] }) {
-        const deck = new Deck(plain.deck);
-        const cards = plain.cards;
-        const collected = plain.collected;
+    static fromPlain(plain: PlainTable) {
+        const deck = new Deck(plain.deck.map(decompressCard));
+        const cards = plain.cards.map(decompressCard);
+        const collected = plain.collected.map(decompressCard);
         return new Table({ deck, cards, collected });
     }
 
