@@ -14,11 +14,12 @@ import { MAX_HIGH_SCORE_ENTRIES } from "@/lib/constants";
 async function eligibleForHighScore(time: number, info: GameOverInfo) {
     const eligibilityThreshold = MAX_HIGH_SCORE_ENTRIES;  // Must be within top this many to qualify
     const supabase = createClient();
-    // Get top ten completion times
+    // Get top completion times
     let result = await supabase
         .from("highScores")
         .select("timeSeconds")
         .order("timeSeconds", { ascending: true })
+        .gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())  // Within past week
         .limit(eligibilityThreshold);
     if (result.error) {
         console.error(result.error);

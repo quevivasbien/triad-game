@@ -1,3 +1,3 @@
 export const TRIAD_HIGHLIGHT_TIMEOUT_MS = 500;
 export const HINT_HIGHLIGHT_TIMEOUT_MS = 2000;
-export const MAX_HIGH_SCORE_ENTRIES = 20;
+export const MAX_HIGH_SCORE_ENTRIES = 27;
